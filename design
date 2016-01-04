@@ -1,0 +1,9 @@
+data flow:
+args -> test app -> output lines -> test results (+ test output!) -> list of failed tests (maybe empty)
+complication 1: test interruption by user -> state 'interrupted or not' (in another thread!)
+complication 2: only 'current' test output is shown -> state 'current test name'
+complication 3: args can be passed via UI or command line
+
+???
+- what is 'queued' state? am I supposed to retrieve list of tests without running them?
+- seems that output line can change to reflect test state (queued/working/failed/passed)
