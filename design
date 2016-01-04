@@ -7,3 +7,20 @@ complication 3: args can be passed via UI or command line
 ???
 - what is 'queued' state? am I supposed to retrieve list of tests without running them?
 - seems that output line can change to reflect test state (queued/working/failed/passed)
+
+links
+http://habrahabr.ru/post/137347/ - Swing kick-start + some tricks
+http://www.miglayout.com/, https://github.com/mikaelgrev/miglayout - MiGLayout for Swing
+http://habrahabr.ru/company/crystal_service/blog/251339/ - testing Swing (two libs: fest and jemmy)
+
+https://github.com/ReactiveX/RxSwing - RX + Swing
+https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples - RX + Swing examples
+
+https://github.com/ospector/gtest-gbar - C# UI for google-tests
+
+UI
+Test exe parameters (exe path, args, working directory, env vars)
+"Run" & "Interrupt" buttons
+Test hierarchy view
+Test output view
+Tests summary view
