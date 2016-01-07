@@ -5,8 +5,10 @@ complication 2: only 'current' test output is shown -> state 'current test name'
 complication 3: args can be passed via UI or command line
 
 ???
-- what is 'queued' state? am I supposed to retrieve list of tests without running them?
-- seems that output line can change to reflect test state (queued/working/failed/passed)
+? what is 'queued' state? am I supposed to retrieve list of tests without running them?
+
+? seems that output line can change to reflect test state (queued/working/failed/passed)
+! no, it can not
 
 links
 http://habrahabr.ru/post/137347/ - Swing kick-start + some tricks
@@ -16,7 +18,11 @@ http://habrahabr.ru/company/crystal_service/blog/251339/ - testing Swing (two li
 https://github.com/ReactiveX/RxSwing - RX + Swing
 https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples - RX + Swing examples
 
+Vaadin - UI generator
+
 https://github.com/ospector/gtest-gbar - C# UI for google-tests
+
+http://www.javaworld.com/article/2071275/core-java/when-runtime-exec---won-t.html - process creation pitfalls
 
 UI
 Test exe parameters (exe path, args, working directory, env vars)

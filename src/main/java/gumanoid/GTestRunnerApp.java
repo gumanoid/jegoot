@@ -6,10 +6,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 //done Run external process and display it's output in GUI
-//todo Support external process interruption
+//done Support external process interruption
 //todo Parse GTest output
 //todo Tests summary
+//todo Invariant: "Kill process".enabled == process.isRunning
 //todo Re-run only failed tests
+//todo Check Linux platform
 //todo TEST, TEST_F, TEST_P?
 
 /**
@@ -17,22 +19,36 @@ import java.io.InputStreamReader;
  */
 public class GTestRunnerApp {
     public static void main(String[] args) throws Exception {
-        ProcessBuilder echo = new ProcessBuilder("cmd");
-
-        JTextArea processOutput = new JTextArea(5, 20);
+        JTextArea processOutput = new JTextArea(5, 20); //todo monospaced font
         JScrollPane scrollPane = new JScrollPane(processOutput);
         processOutput.setEditable(false);
 
+        JButton killProcess = new JButton("Kill");
+
         JFrame mainWindow = new JFrame("Title");
+        mainWindow.setLayout(new BoxLayout(mainWindow.getContentPane(), BoxLayout.PAGE_AXIS));
         mainWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         mainWindow.getContentPane().add(scrollPane, BorderLayout.CENTER);
+        mainWindow.getContentPane().add(Box.createRigidArea(new Dimension(0, 10)));
+        mainWindow.getContentPane().add(killProcess, BorderLayout.PAGE_END);
         mainWindow.pack();
         mainWindow.setVisible(true);
 
-        Process echoProcess = echo.start();
+        Process testProcess = new ProcessBuilder("test_samples/test_samples.exe").redirectErrorStream(true).start();
+        killProcess.addActionListener(e -> testProcess.destroyForcibly());
 
-        try (BufferedReader echoOutput = new BufferedReader(new InputStreamReader(echoProcess.getInputStream(), "CP866"))) {
-            echoOutput.lines().forEach(processOutput::append);
+        System.out.println("started");
+
+        String charset = "CP866"; //todo platform-specific encoding
+//        String charset = "UTF-8";
+
+        try (BufferedReader echoOutput = new BufferedReader(new InputStreamReader(testProcess.getInputStream(), charset))) {
+            echoOutput.lines().forEach(line -> {
+                System.out.println(line);
+                processOutput.append(line + '\n');
+            });
         }
+
+        System.out.println("finished");
     }
 }
