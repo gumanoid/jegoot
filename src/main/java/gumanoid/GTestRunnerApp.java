@@ -49,6 +49,6 @@ public class GTestRunnerApp {
             });
         }
 
-        System.out.println("finished");
+        System.out.println("finished with exit code " + testProcess.waitFor());
     }
 }
