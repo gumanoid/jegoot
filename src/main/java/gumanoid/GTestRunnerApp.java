@@ -7,7 +7,8 @@ import java.io.InputStreamReader;
 
 //done Run external process and display it's output in GUI
 //done Support external process interruption
-//todo Parse GTest output
+//done Parse GTest output
+//todo Check more GTest output cases (singular/plural, time measuring on/off etc)
 //todo Tests summary
 //todo Invariant: "Kill process".enabled == process.isRunning
 //todo Re-run only failed tests
@@ -19,7 +20,8 @@ import java.io.InputStreamReader;
  */
 public class GTestRunnerApp {
     public static void main(String[] args) throws Exception {
-        JTextArea processOutput = new JTextArea(5, 20); //todo monospaced font
+        JTextArea processOutput = new JTextArea(5, 20);
+        processOutput.setFont(new Font("monospaced", Font.PLAIN, 12));
         JScrollPane scrollPane = new JScrollPane(processOutput);
         processOutput.setEditable(false);
 
