@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
+import java.awt.*;
 import java.util.Map;
 
 /**
@@ -18,6 +19,7 @@ public class GTestOutputView extends JScrollPane {
         tree.setName("GTest_output_tree");
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);
+        tree.setFont(new Font("monospaced", Font.PLAIN, 12));
         root = (DefaultMutableTreeNode) tree.getModel().getRoot();
     }
 
