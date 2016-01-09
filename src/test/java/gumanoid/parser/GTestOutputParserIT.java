@@ -13,6 +13,8 @@ import static org.mockito.Mockito.*;
  */
 @Test
 public class GTestOutputParserIT {
+    //todo check case when tests are shuffled
+
     GTestOutputParser.EventListener listener = mock(GTestOutputParser.EventListener.class);
     InOrder inOrder = inOrder(listener);
     GTestOutputParser parser;

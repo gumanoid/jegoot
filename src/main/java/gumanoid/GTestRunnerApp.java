@@ -9,6 +9,9 @@ import java.io.InputStreamReader;
 //done Support external process interruption
 //done Parse GTest output
 //done Check more GTest output cases (singular/plural, time measuring on/off etc)
+//done Implement basic UI for displaying test output
+//todo Checkpoint 1: Select test executable, run it and show it's output in UI
+//todo Make use of FEST for UI testing
 //todo Tests summary
 //todo Invariant: "Kill process".enabled == process.isRunning
 //todo Re-run only failed tests
