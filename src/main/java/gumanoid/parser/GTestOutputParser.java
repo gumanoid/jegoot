@@ -1,5 +1,6 @@
 package gumanoid.parser;
 
+import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -24,7 +25,7 @@ public class GTestOutputParser {
         void groupEnd(String groupName, int testsInGroup);
 
         void testStart(String groupName, String testName);
-        void testOutput(String outputLine);
+        void testOutput(Optional<String> groupName, Optional<String> testName, String outputLine);
         void testPassed(String groupName, String testName);
         void testFailed(String groupName, String testName);
 
@@ -34,27 +35,28 @@ public class GTestOutputParser {
         void summaryOutput(String outputLine);
     }
 
-    private static final Pattern SUITE_START_PATTERN = Pattern.compile(" Running (\\d+) tests from (\\d+) test cases\\.$");
-    private static final Pattern SUITE_END_PATTERN = Pattern.compile(" (\\d+) tests from (\\d+) test cases ran\\. (?:\\((\\d+) ms total\\))?$");
+    private static final Pattern SUITE_START_PATTERN = Pattern.compile(" Running (\\d+) test[s]? from (\\d+) test case[s]?\\.$");
+    private static final Pattern SUITE_END_PATTERN = Pattern.compile(" (\\d+) test[s]? from (\\d+) test case[s]? ran\\. (?:\\((\\d+) ms total\\))?$");
 
     private static final Pattern TEST_ENV_SETUP_PATTERN = Pattern.compile(" Global test environment set-up\\.$");
     private static final Pattern TEST_ENV_TEARDOWN_PATTERN = Pattern.compile(" Global test environment tear-down$");
 
-    private static final Pattern GROUP_BOUNDARY = Pattern.compile(" (\\d+) tests from (\\w+)(?: \\((\\d+) ms total\\))?$");
+    private static final Pattern GROUP_BOUNDARY = Pattern.compile(" (\\d+) test[s]? from (\\w+)(?: \\((\\d+) ms total\\))?$");
 
     private static final Pattern TEST_START_PATTERN = Pattern.compile(" (\\w+)\\.(\\w+)$");
     private static final Pattern TEST_PASSED_PATTERN = Pattern.compile(" (\\w+)\\.(\\w+)(?: \\((\\d+) ms\\))?$");
     private static final Pattern TEST_FAILED_PATTERN = Pattern.compile(" (\\w+)\\.(\\w+)(?: \\((\\d+) ms\\))?$");
 
-    private static final Pattern PASSED_SUMMARY_PATTERN = Pattern.compile(" (\\d+) test\\.$");
-    private static final Pattern FAILED_SUMMARY_PATTERN = Pattern.compile(" (\\d+) tests, listed below:$");
+    private static final Pattern PASSED_SUMMARY_PATTERN = Pattern.compile(" (\\d+) test[s]?\\.$");
+    private static final Pattern FAILED_SUMMARY_PATTERN = Pattern.compile(" (\\d+) test[s]?, listed below:$");
 
     private final EventListener listener;
 
     private enum SuiteState { NotStarted, Running, Finished}
 
     private SuiteState suiteState = SuiteState.NotStarted;
-    private String currentGroup = null;
+    private Optional<String> currentGroup = Optional.empty();
+    private Optional<String> currentTest = Optional.empty();
 
     public GTestOutputParser(EventListener listener) {
         this.listener = listener;
@@ -92,19 +94,23 @@ public class GTestOutputParser {
                 );
 
         if (!specialLine) {
-            switch (suiteState) {
-                case NotStarted:
-                    listener.outputBeforeSuiteStarted(line);
-                    break;
+            regularOutput(line);
+        }
+    }
 
-                case Running:
-                    listener.testOutput(line);
-                    break;
+    private void regularOutput(String line) {
+        switch (suiteState) {
+            case NotStarted:
+                listener.outputBeforeSuiteStarted(line);
+                break;
 
-                case Finished:
-                    listener.summaryOutput(line);
-                    break;
-            }
+            case Running:
+                listener.testOutput(currentGroup, currentTest, line);
+                break;
+
+            case Finished:
+                listener.summaryOutput(line);
+                break;
         }
     }
 
@@ -125,20 +131,30 @@ public class GTestOutputParser {
     private void groupBoundary(String groupName, int testCount) {
         assert running();
 
-        if (currentGroup == null) {
-            currentGroup = groupName;
+        if (!currentGroup.isPresent()) {
+            currentGroup = Optional.of(groupName);
             listener.groupStart(groupName, testCount);
         } else {
-            currentGroup = null;
+            assert currentGroup.get().equals(groupName);
+
+            currentGroup = Optional.empty();
             listener.groupEnd(groupName, testCount);
         }
     }
 
     private void testStart(String groupName, String testName) {
+        assert currentGroup.isPresent() && currentGroup.get().equals(groupName);
+        assert !currentTest.isPresent();
+
+        currentTest = Optional.of(testName);
         listener.testStart(groupName, testName);
     }
 
     private void testPassed(String groupName, String testName) {
+        assert currentGroup.isPresent() && currentGroup.get().equals(groupName);
+        assert currentTest.isPresent() && currentTest.get().equals(testName);
+
+        currentTest = Optional.empty();
         listener.testPassed(groupName, testName);
     }
 
@@ -147,6 +163,10 @@ public class GTestOutputParser {
     }
 
     private void testFailed(String groupName, String testName) {
+        assert currentGroup.isPresent() && currentGroup.get().equals(groupName);
+        assert currentTest.isPresent() && currentTest.get().equals(testName);
+
+        currentTest = Optional.empty();
         listener.testFailed(groupName, testName);
     }
 

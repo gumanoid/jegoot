@@ -3,6 +3,8 @@ package gumanoid.parser;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.Optional;
+
 import static org.mockito.Mockito.*;
 
 /**
@@ -10,10 +12,6 @@ import static org.mockito.Mockito.*;
  */
 @Test
 public class GTestOutputParserUTest {
-    //todo check cases when time measuring is suppressed
-    //todo looks like test number formatter prints different
-    //text for 1 and several tests (e. g. 1 test and 3 tests)
-
     GTestOutputParser.EventListener listener = mock(GTestOutputParser.EventListener.class);
     GTestOutputParser parser;
 
@@ -41,13 +39,15 @@ public class GTestOutputParserUTest {
     }
 
     @Test void testStart() throws Exception {
+        groupStart();
+
         parser.onNextLine("[ RUN      ] SomeGroup.TestIsTrue");
         verify(listener).testStart("SomeGroup", "TestIsTrue");
         verifyNoMoreInteractions(listener);
     }
 
     @Test void testPassed() throws Exception {
-        suiteStart();
+        testStart();
 
         parser.onNextLine("[       OK ] SomeGroup.TestIsTrue (0 ms)");
         verify(listener).testPassed("SomeGroup", "TestIsTrue");
@@ -55,25 +55,25 @@ public class GTestOutputParserUTest {
     }
 
     @Test void testOutput() throws Exception {
-        suiteStart();
+        testStart();
 
         parser.onNextLine("..\\..\\..\\test_samples\\main.cpp(12): error: Value of: 0 == 0");
-        verify(listener).testOutput("..\\..\\..\\test_samples\\main.cpp(12): error: Value of: 0 == 0");
+        verify(listener).testOutput(Optional.of("SomeGroup"), Optional.of("TestIsTrue"), "..\\..\\..\\test_samples\\main.cpp(12): error: Value of: 0 == 0");
 
         parser.onNextLine("  Actual: true");
-        verify(listener).testOutput("  Actual: true");
+        verify(listener).testOutput(Optional.of("SomeGroup"), Optional.of("TestIsTrue"), "  Actual: true");
 
         parser.onNextLine("Expected: false");
-        verify(listener).testOutput("Expected: false");
+        verify(listener).testOutput(Optional.of("SomeGroup"), Optional.of("TestIsTrue"), "Expected: false");
 
         verifyNoMoreInteractions(listener);
     }
 
     @Test void testFailed() throws Exception {
-        suiteStart();
+        testStart();
 
-        parser.onNextLine("[  FAILED  ] SomeGroup.FailingTest (1 ms)");
-        verify(listener).testFailed("SomeGroup", "FailingTest");
+        parser.onNextLine("[  FAILED  ] SomeGroup.TestIsTrue (1 ms)");
+        verify(listener).testFailed("SomeGroup", "TestIsTrue");
         verifyNoMoreInteractions(listener);
     }
 

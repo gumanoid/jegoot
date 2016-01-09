@@ -8,7 +8,7 @@ import java.io.InputStreamReader;
 //done Run external process and display it's output in GUI
 //done Support external process interruption
 //done Parse GTest output
-//todo Check more GTest output cases (singular/plural, time measuring on/off etc)
+//done Check more GTest output cases (singular/plural, time measuring on/off etc)
 //todo Tests summary
 //todo Invariant: "Kill process".enabled == process.isRunning
 //todo Re-run only failed tests
