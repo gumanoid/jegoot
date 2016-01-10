@@ -23,6 +23,13 @@ public class GTestOutputView extends JScrollPane {
         root = (DefaultMutableTreeNode) tree.getModel().getRoot();
     }
 
+    public void clear() {
+        JTree tree = (JTree) getViewport().getView();
+        DefaultTreeModel model = (DefaultTreeModel) tree.getModel();
+        root.removeAllChildren();
+        model.nodeStructureChanged(root);
+    }
+
     public void appendCollapsible(String displayName, String... pathKeys) {
         String newBranchKey = pathKeys[pathKeys.length - 1];
         DefaultMutableTreeNode newBranch = new DefaultMutableTreeNode(new GTestOutputTreeIndex(displayName));
