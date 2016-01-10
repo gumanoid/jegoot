@@ -36,7 +36,7 @@ public class GTestOutputParser {
     }
 
     private static final Pattern SUITE_START_PATTERN = Pattern.compile(" Running (\\d+) test[s]? from (\\d+) test case[s]?\\.$");
-    private static final Pattern SUITE_END_PATTERN = Pattern.compile(" (\\d+) test[s]? from (\\d+) test case[s]? ran\\. (?:\\((\\d+) ms total\\))?$");
+    private static final Pattern SUITE_END_PATTERN = Pattern.compile(" (\\d+) test[s]? from (\\d+) test case[s]? ran\\.(?: \\((\\d+) ms total\\))?$");
 
     private static final Pattern TEST_ENV_SETUP_PATTERN = Pattern.compile(" Global test environment set-up\\.$");
     private static final Pattern TEST_ENV_TEARDOWN_PATTERN = Pattern.compile(" Global test environment tear-down$");
@@ -56,6 +56,7 @@ public class GTestOutputParser {
 
     private SuiteState suiteState = SuiteState.NotStarted;
     private Optional<String> currentGroup = Optional.empty();
+    private int testsInCurrentGroup;
     private Optional<String> currentTest = Optional.empty();
 
     public GTestOutputParser(EventListener listener) {
@@ -124,6 +125,10 @@ public class GTestOutputParser {
     private void suiteEnd(int testCount, int groupCount) {
         assert running();
 
+        if (currentGroup.isPresent()) {
+            listener.groupEnd(currentGroup.get(), testsInCurrentGroup);
+        }
+
         suiteState = SuiteState.Finished;
         listener.suiteEnd(testCount, groupCount);
     }
@@ -131,14 +136,18 @@ public class GTestOutputParser {
     private void groupBoundary(String groupName, int testCount) {
         assert running();
 
-        if (!currentGroup.isPresent()) {
-            currentGroup = Optional.of(groupName);
-            listener.groupStart(groupName, testCount);
-        } else {
-            assert currentGroup.get().equals(groupName);
-
+        if (currentGroup.isPresent() && currentGroup.get().equals(groupName)) {
             currentGroup = Optional.empty();
             listener.groupEnd(groupName, testCount);
+        } else {
+            if (currentGroup.isPresent()) {
+                //this is the case when elapsed time measurement is turned off
+                listener.groupEnd(currentGroup.get(), testsInCurrentGroup);
+            }
+
+            currentGroup = Optional.of(groupName);
+            testsInCurrentGroup = testCount;
+            listener.groupStart(groupName, testCount);
         }
     }
 
@@ -158,16 +167,16 @@ public class GTestOutputParser {
         listener.testPassed(groupName, testName);
     }
 
-    private void passedSummary(int passedTestCount) {
-        listener.passedTestsSummary(passedTestCount);
-    }
-
     private void testFailed(String groupName, String testName) {
         assert currentGroup.isPresent() && currentGroup.get().equals(groupName);
         assert currentTest.isPresent() && currentTest.get().equals(testName);
 
         currentTest = Optional.empty();
         listener.testFailed(groupName, testName);
+    }
+
+    private void passedSummary(int passedTestCount) {
+        listener.passedTestsSummary(passedTestCount);
     }
 
     private void failedTestSummary(String groupName, String testName) {
