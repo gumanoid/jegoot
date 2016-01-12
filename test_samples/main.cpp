@@ -2,17 +2,15 @@
 
 #include "gtest/gtest.h"
 
-#include <windows.h>
-
 #include <iostream>
 
 //TEST(SomeGroup, TestIsTrue) {
 //    ASSERT_TRUE(0 == 0);
 //}
 
-TEST(SomeGroup, FailingTest) {
-    ASSERT_FALSE(0 == 0);
-}
+//TEST(SomeGroup, FailingTest) {
+//    ASSERT_FALSE(0 == 0);
+//}
 
 //TEST(OtherGroup, ExpectTest) {
 //    EXPECT_EQ(0, 0);

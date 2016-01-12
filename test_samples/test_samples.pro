@@ -12,3 +12,4 @@ qtcAddDeployment()
 HEADERS += \
     gtest/gtest.h
 
+unix:!mac: LIBS += -lpthread
