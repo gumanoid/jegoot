@@ -18,10 +18,12 @@ import java.util.List;
  */
 public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, GTestRunner.SuiteProgress> {
     protected static class SuiteProgress {
+        public final int failedTests;
         public final int finishedTests;
         public final int totalTests;
 
-        public SuiteProgress(int finishedTests, int totalTests) {
+        public SuiteProgress(int failedTests, int finishedTests, int totalTests) {
+            this.failedTests = failedTests;
             this.finishedTests = finishedTests;
             this.totalTests = totalTests;
         }
@@ -81,25 +83,26 @@ public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, G
 
     private InvokeLaterProxyListener createTestStatsListener(GTestOutputParser.EventListener outputListener) {
         return new InvokeLaterProxyListener(outputListener) {
-            private int totalTests = 0;
-            private int finishedTests = 0;
+            private int failed = 0;
+            private int total = 0;
+            private int finished = 0;
 
             @Override
             public void suiteStart(int testCount, int testGroupCount) {
                 super.suiteStart(testCount, testGroupCount);
-                totalTests = testCount;
+                total = testCount;
             }
 
             @Override
             public void testPassed(String groupName, String testName) {
                 super.testPassed(groupName, testName);
-                publish(new SuiteProgress(++finishedTests, totalTests));
+                publish(new SuiteProgress(failed, ++finished, total));
             }
 
             @Override
             public void testFailed(String groupName, String testName) {
                 super.testFailed(groupName, testName);
-                publish(new SuiteProgress(++finishedTests, totalTests));
+                publish(new SuiteProgress(++failed, ++finished, total));
                 failedTests.add(groupName + "." + testName);
             }
         };

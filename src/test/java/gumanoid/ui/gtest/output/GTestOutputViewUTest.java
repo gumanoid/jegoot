@@ -1,11 +1,15 @@
 package gumanoid.ui.gtest.output;
 
 import org.fest.swing.fixture.FrameFixture;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import javax.swing.*;
+
+import java.awt.*;
 
 import static org.testng.Assert.*;
 
@@ -15,24 +19,44 @@ import static org.testng.Assert.*;
 @Test
 public class GTestOutputViewUTest {
     FrameFixture window;
+    JFrame ui;
+    GTestOutputView outputView;
 
-    @BeforeMethod void initFestRobot() {
-        JFrame windowUI = new JFrame("Title");
-        windowUI.setLayout(new BoxLayout(windowUI.getContentPane(), BoxLayout.PAGE_AXIS));
-//        windowUI.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        GTestOutputView view = new GTestOutputView();
-        view.append("some output");
-        windowUI.getContentPane().add(view);
+    @BeforeClass void initFrameFixture() {
+        ui = new JFrame("Title");
+        outputView = new GTestOutputView();
+        ui.getContentPane().add(outputView, BorderLayout.CENTER);
 
-        window = new FrameFixture(windowUI);
+        window = new FrameFixture(ui);
         window.show();
     }
 
-    @AfterMethod void cleanUpFestRobot() {
+    @BeforeMethod void clearOutputView() {
+        outputView.clear();
+    }
+
+    @AfterClass void cleanUpFrameFixture() {
         window.cleanUp();
     }
 
-    @Test void singleRootBranch() throws Exception {
+    @DataProvider(name = "simpleOutputData")
+    Object[][] simpleOutputData() {
+        return new Object[][] {
+                { "" },
+                { "foobar" },
+                { "some output line" },
+        };
+    }
 
+    @Test(dataProvider = "simpleOutputData")
+    void singleLeafUnderRoot(String outputLine) throws Exception {
+        outputView.atRoot().addOutputLine(outputLine);
+        assertEquals(window.tree(GTestOutputView.TREE_NAME).valueAt(0), outputLine);
+    }
+
+    @Test(dataProvider = "simpleOutputData")
+    void singleBranchUnderRoot(String outputLine) throws Exception {
+        outputView.atRoot().addCollapsible("suite", outputLine);
+        assertEquals(window.tree(GTestOutputView.TREE_NAME).valueAt(0), outputLine);
     }
 }

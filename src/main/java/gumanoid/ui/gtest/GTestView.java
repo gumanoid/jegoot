@@ -22,81 +22,6 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
     private final GTestOutputView testOutputView = new GTestOutputView();
 
-    GTestOutputParser.EventListener outputListener = new GTestOutputParser.EventListener() {
-        @Override
-        public void outputBeforeSuiteStarted(String outputLine) {
-            testOutputView.append(outputLine);
-        }
-
-        @Override
-        public void suiteStart(int testCount, int testGroupCount) {
-            testOutputView.appendCollapsible("Suite", "suite");
-        }
-
-        @Override
-        public void suiteEnd(int testCount, int testGroupCount) {
-            testOutputView.appendCollapsible("Summary", "summary");
-        }
-
-        @Override
-        public void groupStart(String groupName, int testsInGroup) {
-            testOutputView.appendCollapsible(groupName + " with " + testsInGroup + " test(s)", "suite", groupName);
-        }
-
-        @Override
-        public void groupEnd(String groupName, int testsInGroup) {
-
-        }
-
-        @Override
-        public void testStart(String groupName, String testName) {
-            testOutputView.appendCollapsible(testName, "suite", groupName, testName);
-        }
-
-        @Override
-        public void testOutput(Optional<String> groupName, Optional<String> testName, String outputLine) {
-            if (groupName.isPresent()) {
-                if (testName.isPresent()) {
-                    testOutputView.append(outputLine, "suite", groupName.get(), testName.get());
-                } else {
-                    testOutputView.append(outputLine, "suite", groupName.get());
-                }
-            } else {
-                testOutputView.append(outputLine, "suite");
-            }
-        }
-
-        @Override
-        public void testPassed(String groupName, String testName) {
-            testOutputView.append("Passed", "suite", groupName, testName);
-        }
-
-        @Override
-        public void testFailed(String groupName, String testName) {
-            testOutputView.append("Failed", "suite", groupName, testName);
-        }
-
-        @Override
-        public void passedTestsSummary(int passedTestCount) {
-            testOutputView.append("Passed test(s): " + passedTestCount, "summary");
-        }
-
-        @Override
-        public void failedTestsSummary(int failedTestCount) {
-            testOutputView.append("Failed test(s): " + failedTestCount, "summary");
-        }
-
-        @Override
-        public void failedTestSummary(String groupName, String failedTest) {
-            testOutputView.append("Failed test: " + failedTest + " in group " + groupName, "summary");
-        }
-
-        @Override
-        public void summaryOutput(String outputLine) {
-            testOutputView.append(outputLine, "summary");
-        }
-    };
-
     private GTestRunner currentTask = null;
     private Collection<String> failedTests = Collections.emptyList();
 
@@ -120,9 +45,11 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         cancelTests.setEnabled(false);
         rerunFailedTests.setEnabled(false);
 
-        runTests.addActionListener(e -> start(new GTestRunner(testExePath, outputListener) {
+        runTests.addActionListener(e -> start(new GTestRunner(testExePath, createHandler()) {
             @Override
             protected void onProgress(SuiteProgress progress) {
+                //todo two-section progress bar, to display failed/passed ratio
+
                 testsProgress.setMaximum(progress.totalTests);
                 testsProgress.setValue(progress.finishedTests);
             }
@@ -140,9 +67,11 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
             }
         });
 
-        rerunFailedTests.addActionListener(e -> start(new GTestRunner(testExePath, failedTests, outputListener) {
+        rerunFailedTests.addActionListener(e -> start(new GTestRunner(testExePath, failedTests, createHandler()) {
             @Override
             protected void onProgress(SuiteProgress progress) {
+                //todo two-section progress bar, to display failed/passed ratio
+
                 testsProgress.setMaximum(progress.totalTests);
                 testsProgress.setValue(progress.finishedTests);
             }
@@ -154,6 +83,102 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         }));
 
         SwingUtilities.invokeLater(runTests::doClick);
+    }
+
+    private GTestOutputParser.EventListener createHandler() {
+        return new GTestOutputParser.EventListener() {
+            boolean failsInSuite = false;
+            boolean failsInGroup = false;
+
+            @Override
+            public void outputBeforeSuiteStarted(String outputLine) {
+                testOutputView.atRoot().addOutputLine(outputLine);
+            }
+
+            @Override
+            public void suiteStart(int testCount, int testGroupCount) {
+                testOutputView.atRoot()
+                        .addCollapsible("suite", "Suite")
+                        .setTextColor(Color.YELLOW);
+            }
+
+            @Override
+            public void suiteEnd(int testCount, int testGroupCount) {
+                testOutputView.atRoot()
+                        .addCollapsible("summary", "Summary")
+                        .setTextColor(failsInSuite? Color.RED : Color.GREEN);
+
+                if (!failsInSuite) {
+                    testOutputView.at("suite").setTextColor(Color.GREEN);
+                }
+            }
+
+            @Override
+            public void groupStart(String groupName, int testsInGroup) {
+                failsInGroup = false;
+                testOutputView.at("suite").addCollapsible(groupName, groupName + " with " + testsInGroup + " test(s)");
+            }
+
+            @Override
+            public void groupEnd(String groupName, int testsInGroup) {
+                if (!failsInGroup) {
+                    testOutputView.at("suite", groupName).setTextColor(Color.GREEN);
+                }
+            }
+
+            @Override
+            public void testStart(String groupName, String testName) {
+                testOutputView.at("suite", groupName).addCollapsible(testName, testName);
+            }
+
+            @Override
+            public void testOutput(Optional<String> groupName, Optional<String> testName, String outputLine) {
+                if (groupName.isPresent()) {
+                    if (testName.isPresent()) {
+                        testOutputView.at("suite", groupName.get(), testName.get()).addOutputLine(outputLine);
+                    } else {
+                        testOutputView.at("suite", groupName.get()).addOutputLine(outputLine);
+                    }
+                } else {
+                    testOutputView.at("suite").addOutputLine(outputLine);
+                }
+            }
+
+            @Override
+            public void testPassed(String groupName, String testName) {
+                testOutputView.at("suite", groupName, testName).setTextColor(Color.GREEN);
+            }
+
+            @Override
+            public void testFailed(String groupName, String testName) {
+                failsInGroup = true;
+                failsInSuite = true;
+
+                testOutputView.at("suite").setTextColor(Color.RED);
+                testOutputView.at("suite", groupName).setTextColor(Color.RED);
+                testOutputView.at("suite", groupName, testName).setTextColor(Color.RED);
+            }
+
+            @Override
+            public void passedTestsSummary(int passedTestCount) {
+                testOutputView.at("summary").addOutputLine("Passed test(s): " + passedTestCount);
+            }
+
+            @Override
+            public void failedTestsSummary(int failedTestCount) {
+                testOutputView.at("summary").addOutputLine("Failed test(s): " + failedTestCount);
+            }
+
+            @Override
+            public void failedTestSummary(String groupName, String failedTest) {
+                testOutputView.at("summary").addOutputLine("Failed test: " + failedTest + " in group " + groupName);
+            }
+
+            @Override
+            public void summaryOutput(String outputLine) {
+                testOutputView.at("summary").addOutputLine(outputLine);
+            }
+        };
     }
 
     private void start(GTestRunner testRunner) {
