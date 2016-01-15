@@ -51,17 +51,21 @@ public class GTestOutputView extends JScrollPane {
             this.node = node;
         }
 
+        public StyleOpsAtPath setDisplayName(String displayName) {
+            node.setDisplayName(displayName);
+            model.nodeChanged(node);
+            return this;
+        }
+
         public StyleOpsAtPath setIcon(Icon icon) {
             node.setIcon(icon);
             model.nodeChanged(node);
-
             return this;
         }
 
         public StyleOpsAtPath setTextColor(Color color) {
             node.setTextColor(color);
             model.nodeChanged(node);
-
             return this;
         }
     }
