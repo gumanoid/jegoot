@@ -10,6 +10,14 @@ import java.nio.file.Paths;
 
 //fixed Elapsed time is different each time GTestRunnerIT starts test samples, fix test
 
+//fixme output line ordering
+//Test enumerator finishes before test runner, and test output view displays output line
+//in no particular order. Thus, e. g. "global test environment set up" message can be
+//displayed in the middle of some group/test. To handle this, test output view should
+//separate two concepts: text contents and text style, and support two
+//content builders with interface like "new child; new sibling; up one level" working
+//simultaneously
+
 //done Run external process and display it's output in GUI
 //done Support external process interruption
 //done Parse GTest output

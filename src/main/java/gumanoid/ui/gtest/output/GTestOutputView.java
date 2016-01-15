@@ -22,7 +22,7 @@ public class GTestOutputView extends JScrollPane {
     private final JTree tree;
 
     public GTestOutputView() {
-        super(new JTree(new StyledTreeNode("")));
+        super(new JTree(new StyledTreeNode(null)));
 
         tree = JTree.class.cast(getViewport().getView());
         model = DefaultTreeModel.class.cast(tree.getModel());
@@ -75,12 +75,30 @@ public class GTestOutputView extends JScrollPane {
             super(node);
         }
 
+        /**
+         * Add child node, if it does not exist already. Ensure it's display name is
+         * set to <code>displayName</code>
+         *
+         * @param pathKey        node key
+         * @param displayName    node display name
+         * @return object allowing child node styling
+         */
         public StyleOpsAtPath addCollapsible(String pathKey, String displayName) {
-            StyledTreeNode newBranch = new StyledTreeNode(displayName);
-            newBranch.setUserObject(new HashMap<String, StyledTreeNode>());
-            childrenIndex(node).put(pathKey, newBranch);
-            addChildNode(node, newBranch);
+            StyledTreeNode newBranch = ensureChildNodeExists(pathKey, displayName);
+            newBranch.setDisplayName(displayName);
+            return new StyleOpsAtPath(newBranch);
+        }
 
+        /**
+         * Add child node, if it does not exist already. If there is no such node,
+         * it is created and it's display name is set to <code>pathKey</code>. If
+         * the node exists, it's display name is left unchanged
+         *
+         * @param pathKey        node key
+         * @return object allowing child node styling
+         */
+        public StyleOpsAtPath addCollapsible(String pathKey) {
+            StyledTreeNode newBranch = ensureChildNodeExists(pathKey, pathKey);
             return new StyleOpsAtPath(newBranch);
         }
 
@@ -89,6 +107,20 @@ public class GTestOutputView extends JScrollPane {
             addChildNode(node, newLeaf);
 
             return new StyleOpsAtPath(newLeaf);
+        }
+
+        private StyledTreeNode ensureChildNodeExists(String pathKey, String displayName) {
+            return childrenIndex(node).compute(pathKey, (k, existing) -> {
+                if (existing != null) {
+                    return existing;
+                }
+
+                StyledTreeNode result = new StyledTreeNode(displayName);
+                result.setUserObject(new HashMap<String, StyledTreeNode>());
+                childrenIndex(node).put(pathKey, result);
+                addChildNode(node, result);
+                return result;
+            });
         }
     }
 

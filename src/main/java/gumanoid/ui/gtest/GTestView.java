@@ -2,6 +2,7 @@ package gumanoid.ui.gtest;
 
 import com.google.common.annotations.VisibleForTesting;
 import gumanoid.parser.ClassifiedGTestOutputHandler;
+import gumanoid.runner.GTestEnumerator;
 import gumanoid.runner.GTestRunner;
 import gumanoid.ui.gtest.output.GTestOutputView;
 
@@ -30,7 +31,8 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
     private final GTestOutputView testOutputView = new GTestOutputView();
 
-    private GTestRunner currentTask = null;
+    private GTestRunner currentRunTask = null;
+    private GTestEnumerator currentListTask = null;
     private Collection<String> failedTests = Collections.emptyList();
 
     public GTestView(String testExePath) {
@@ -57,48 +59,34 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         cancelTests.setEnabled(false);
         rerunFailedTests.setEnabled(false);
 
-        runTests.addActionListener(e -> start(new GTestRunner(testExePath, createHandler()) {
-            @Override
-            protected void onProgress(SuiteProgress progress) {
-                //todo two-section progress bar, to display failed/passed ratio
-
-                testsProgress.setMaximum(progress.totalTests);
-                testsProgress.setValue(progress.finishedTests);
-            }
-
-            @Override
-            protected void onFinish(SuiteResult result) {
-                finish(result.failedTests);
-            }
-        }));
+        runTests.addActionListener(e -> start(
+                new Enumerator(testExePath),
+                new Runner(testExePath)
+        ));
 
         cancelTests.addActionListener(e -> {
-            if (currentTask != null) {
-                currentTask.cancel(false);
-                finish(null);
+            if (currentListTask != null) {
+                currentRunTask.cancel(false);
+                currentListTask = null;
+            }
+
+            if (currentRunTask != null) {
+                currentRunTask.cancel(false);
+                currentRunTask = null;
+                runnerFinished(null);
             }
         });
 
-        rerunFailedTests.addActionListener(e -> start(new GTestRunner(testExePath, failedTests, createHandler()) {
-            @Override
-            protected void onProgress(SuiteProgress progress) {
-                //todo two-section progress bar, to display failed/passed ratio
-
-                testsProgress.setMaximum(progress.totalTests);
-                testsProgress.setValue(progress.finishedTests);
-            }
-
-            @Override
-            protected void onFinish(SuiteResult result) {
-                finish(result.failedTests);
-            }
-        }));
+        rerunFailedTests.addActionListener(e -> start(
+                new Enumerator(testExePath, failedTests),
+                new Runner(testExePath, failedTests)
+        ));
 
         SwingUtilities.invokeLater(runTests::doClick);
     }
 
     private ClassifiedGTestOutputHandler createHandler() {
-        return new ClassifiedGTestOutputHandler() {
+        return new ClassifiedGTestOutputHandler() { //todo merge with Runner class
             boolean failsInSuite = false;
             boolean failsInGroup = false;
 
@@ -109,10 +97,7 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
             @Override
             public void suiteStart(String outputLine, int testCount, int testGroupCount) {
-                testOutputView.atRoot()
-                        .addCollapsible("suite", "Suite")
-                        .setTextColor(Color.YELLOW);
-
+                testOutputView.at("suite").setTextColor(Color.YELLOW);
                 testOutputView.at("suite").addOutputLine(outputLine);
             }
 
@@ -126,7 +111,7 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
                 testOutputView.atRoot()
                         .addCollapsible("summary", "Summary")
-                        .setTextColor(failsInSuite? Color.RED : Color.GREEN);
+                        .setTextColor(failsInSuite ? Color.RED : Color.GREEN);
             }
 
             @Override
@@ -187,10 +172,12 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         };
     }
 
-    private void start(GTestRunner testRunner) {
-        currentTask = testRunner;
+    private void start(GTestEnumerator enumerator, GTestRunner testRunner) {
+        currentRunTask = testRunner;
+        currentListTask = enumerator;
 
         testOutputView.clear();
+        testOutputView.atRoot().addCollapsible("suite", "Suite");
 
         runTests.setEnabled(false);
         rerunFailedTests.setEnabled(false);
@@ -198,18 +185,83 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
         testsProgress.setValue(0);
 
-        currentTask.execute();
+        currentListTask.execute();
+        currentRunTask.execute();
     }
 
-    private void finish(Collection<String> failedTests) {
-        currentTask = null;
+    private void listerFinished() {
+        currentListTask = null;
 
-        cancelTests.setEnabled(false);
-        runTests.setEnabled(true);
+        updateButtons();
+    }
+
+    private void runnerFinished(Collection<String> failedTests) {
+        currentRunTask = null;
 
         if (failedTests != null) {
             this.failedTests = failedTests;
         }
-        rerunFailedTests.setEnabled(!this.failedTests.isEmpty());
+
+        updateButtons();
+    }
+
+    private void updateButtons() {
+        boolean allowNewRun = currentRunTask == null && currentListTask == null;
+
+        runTests.setEnabled(allowNewRun);
+        cancelTests.setEnabled(!allowNewRun);
+
+        rerunFailedTests.setEnabled(allowNewRun && !this.failedTests.isEmpty());
+    }
+
+    private class Enumerator extends GTestEnumerator {
+        String currentTestGroup;
+
+        public Enumerator(String testExePath) {
+            super(testExePath);
+        }
+
+        public Enumerator(String testExePath, Collection<String> failedTests) {
+            super(testExePath, failedTests);
+        }
+
+        @Override
+        protected void onTestGroup(String testGroupName) {
+            currentTestGroup = testGroupName;
+            testOutputView.at("suite").addCollapsible(testGroupName);
+        }
+
+        @Override
+        protected void onTest(String testName) {
+            testOutputView.at("suite", currentTestGroup).addCollapsible(testName);
+        }
+
+        @Override
+        protected void done() {
+            listerFinished();
+        }
+    }
+
+    private class Runner extends GTestRunner {
+        public Runner(String testExePath) {
+            super(testExePath, createHandler());
+        }
+
+        public Runner(String testExePath, Collection<String> failedTests) {
+            super(testExePath, failedTests, createHandler());
+        }
+
+        @Override
+        protected void onProgress(SuiteProgress progress) {
+            //todo two-section progress bar, to display failed/passed ratio
+
+            testsProgress.setMaximum(progress.totalTests);
+            testsProgress.setValue(progress.finishedTests);
+        }
+
+        @Override
+        protected void onFinish(SuiteResult result) {
+            runnerFinished(result.failedTests);
+        }
     }
 }

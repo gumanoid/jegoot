@@ -1,12 +1,8 @@
 package gumanoid.runner;
 
-import com.google.common.base.Joiner;
 import gumanoid.parser.ClassifiedGTestOutputHandler;
 import gumanoid.parser.GTestOutputParser;
 
-import javax.swing.*;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -18,7 +14,7 @@ import java.util.concurrent.ExecutionException;
  *
  * Created by Gumanoid on 10.01.2016.
  */
-public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, GTestRunner.SuiteProgress> {
+public abstract class GTestRunner extends GTestOutputParsingTask<GTestRunner.SuiteResult, GTestRunner.SuiteProgress> {
     protected static class SuiteProgress {
         public final int failedTests;
         public final int finishedTests;
@@ -41,40 +37,31 @@ public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, G
         }
     }
 
-    private final ProcessBuilder testProcess;
     private final GTestOutputParser parser;
 
     private final Collection<String> failedTests = new LinkedList<>();
 
     public GTestRunner(String testExePath, ClassifiedGTestOutputHandler outputListener) {
-        this.testProcess = new ProcessBuilder(testExePath).redirectErrorStream(true);
-        this.parser = new GTestOutputParser(createTestStatsListener(outputListener));
+        super(testExePath);
+        this.parser = new GTestOutputParser(createTestResultsCollector(outputListener));
     }
 
     public GTestRunner(String testExePath, Collection<String> failedTests, ClassifiedGTestOutputHandler outputListener) {
-        this.testProcess = new ProcessBuilder(testExePath, createTestFilter(failedTests)).redirectErrorStream(true);
-        this.parser = new GTestOutputParser(createTestStatsListener(outputListener));
+        super(testExePath, filterTestOption(failedTests));
+        this.parser = new GTestOutputParser(createTestResultsCollector(outputListener));
     }
 
     @Override
-    protected final SuiteResult doInBackground() throws Exception {
-        Process testProcess = this.testProcess.start();
-
-        String charset = "CP866"; //todo platform-specific encoding
-
-        try (BufferedReader testOutput = new BufferedReader(new InputStreamReader(testProcess.getInputStream(), charset))) {
-            //Stream#takeWhile() is unavailable until Java 9, so we have to use anyMatch as work-around
-            boolean cancelled = testOutput.lines().peek(parser::onNextLine).anyMatch(o -> isCancelled());
-            if (cancelled) {
-                testProcess.destroyForcibly().waitFor();
-                return null;
-            } else {
-                return new SuiteResult(testProcess.waitFor(), failedTests);
-            }
-        }
+    protected void onNextOutputLine(String outputLine) {
+        parser.onNextLine(outputLine);
     }
 
-    private InvokeLaterProxyHandler createTestStatsListener(ClassifiedGTestOutputHandler outputHandler) {
+    @Override
+    protected SuiteResult createResult(boolean cancelled, int exitCode) {
+        return cancelled ? null : new SuiteResult(exitCode, failedTests);
+    }
+
+    private InvokeLaterProxyHandler createTestResultsCollector(ClassifiedGTestOutputHandler outputHandler) {
         return new InvokeLaterProxyHandler(outputHandler) {
             private int failed = 0;
             private int total = 0;
@@ -120,10 +107,4 @@ public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, G
 
     protected abstract void onProgress(SuiteProgress progress);
     protected abstract void onFinish(SuiteResult result);
-
-    //todo check what will happen if both cmd line param and env var will be set to different values
-    //(e. g. which one has priority)
-    private static String createTestFilter(Collection<String> testsToInclude) {
-        return "--gtest_filter=" + Joiner.on(":").join(testsToInclude);
-    }
 }
