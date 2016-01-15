@@ -8,7 +8,7 @@ import java.awt.*;
 import java.io.File;
 import java.nio.file.Paths;
 
-//fixme Race condition in GTestRunner: tests failing randomly
+//fixme Elapsed time is different each time GTestRunnerIT starts test samples, fix test
 
 //done Run external process and display it's output in GUI
 //done Support external process interruption
@@ -16,13 +16,19 @@ import java.nio.file.Paths;
 //done Check more GTest output cases (singular/plural, time measuring on/off etc)
 //done Implement basic UI for displaying test output
 //done Checkpoint 1: Select test executable, run it and show it's output in UI
+//done Keep all output lines, don't skip
+//todo Parser tests: re-check binary output; test that 'env set up / tear down' lines are passed to handler
+//todo UI polishing: status icons
+//todo UI polishing: expanded/collapsed icons
+//done UI polishing: colors
+//todo UI polishing: two-section progress bar, to show failed/passed ratio
 //todo Make use of FEST for UI testing
-//todo UI polishing: icons & colors
 //todo Tests summary
 //todo Invariant: "Kill process".enabled == process.isRunning
 //done Re-run only failed tests
-//todo Check Linux platform
+//done Check Linux platform
 //todo TEST, TEST_F, TEST_P?
+//todo Check Mac platform
 
 /**
  * Created by Gumanoid on 05.01.2016.

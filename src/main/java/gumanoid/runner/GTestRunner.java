@@ -1,6 +1,7 @@
 package gumanoid.runner;
 
 import com.google.common.base.Joiner;
+import gumanoid.parser.ClassifiedGTestOutputHandler;
 import gumanoid.parser.GTestOutputParser;
 
 import javax.swing.*;
@@ -9,10 +10,11 @@ import java.io.InputStreamReader;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Starts test executable, feeds it's output to parser, reports progress
- * (in a form of pairs done/total), and returns list of failed tests
+ * (in a form of triples failed/done/total), and returns list of failed tests
  *
  * Created by Gumanoid on 10.01.2016.
  */
@@ -43,14 +45,13 @@ public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, G
     private final GTestOutputParser parser;
 
     private final Collection<String> failedTests = new LinkedList<>();
-    private int exitCode;
 
-    public GTestRunner(String testExePath, GTestOutputParser.EventListener outputListener) {
+    public GTestRunner(String testExePath, ClassifiedGTestOutputHandler outputListener) {
         this.testProcess = new ProcessBuilder(testExePath).redirectErrorStream(true);
         this.parser = new GTestOutputParser(createTestStatsListener(outputListener));
     }
 
-    public GTestRunner(String testExePath, Collection<String> failedTests, GTestOutputParser.EventListener outputListener) {
+    public GTestRunner(String testExePath, Collection<String> failedTests, ClassifiedGTestOutputHandler outputListener) {
         this.testProcess = new ProcessBuilder(testExePath, createTestFilter(failedTests)).redirectErrorStream(true);
         this.parser = new GTestOutputParser(createTestStatsListener(outputListener));
     }
@@ -62,46 +63,38 @@ public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, G
         String charset = "CP866"; //todo platform-specific encoding
 
         try (BufferedReader testOutput = new BufferedReader(new InputStreamReader(testProcess.getInputStream(), charset))) {
-            for(;;) {
-                if (isCancelled()) {
-                    testProcess.destroyForcibly().waitFor();
-                    return null;
-                }
-
-                String nextLine = testOutput.readLine();
-                if (nextLine == null) {
-                    break;
-                }
-
-                parser.onNextLine(nextLine);
+            //Stream#takeWhile() is unavailable until Java 9, so we have to use anyMatch as work-around
+            boolean cancelled = testOutput.lines().peek(parser::onNextLine).anyMatch(o -> isCancelled());
+            if (cancelled) {
+                testProcess.destroyForcibly().waitFor();
+                return null;
+            } else {
+                return new SuiteResult(testProcess.waitFor(), failedTests);
             }
         }
-
-        exitCode = testProcess.waitFor();
-        return new SuiteResult(exitCode, failedTests);
     }
 
-    private InvokeLaterProxyListener createTestStatsListener(GTestOutputParser.EventListener outputListener) {
-        return new InvokeLaterProxyListener(outputListener) {
+    private InvokeLaterProxyHandler createTestStatsListener(ClassifiedGTestOutputHandler outputHandler) {
+        return new InvokeLaterProxyHandler(outputHandler) {
             private int failed = 0;
             private int total = 0;
             private int finished = 0;
 
             @Override
-            public void suiteStart(int testCount, int testGroupCount) {
-                super.suiteStart(testCount, testGroupCount);
+            public void suiteStart(String outputLine, int testCount, int testGroupCount) {
+                super.suiteStart(outputLine, testCount, testGroupCount);
                 total = testCount;
             }
 
             @Override
-            public void testPassed(String groupName, String testName) {
-                super.testPassed(groupName, testName);
+            public void testPassed(String outputLine, String groupName, String testName) {
+                super.testPassed(outputLine, groupName, testName);
                 publish(new SuiteProgress(failed, ++finished, total));
             }
 
             @Override
-            public void testFailed(String groupName, String testName) {
-                super.testFailed(groupName, testName);
+            public void testFailed(String outputLine, String groupName, String testName) {
+                super.testFailed(outputLine, groupName, testName);
                 publish(new SuiteProgress(++failed, ++finished, total));
                 failedTests.add(groupName + "." + testName);
             }
@@ -117,7 +110,11 @@ public abstract class GTestRunner extends SwingWorker<GTestRunner.SuiteResult, G
     @Override
     protected final void done() {
         if (!isCancelled()) {
-            onFinish(new SuiteResult(exitCode, failedTests));
+            try {
+                onFinish(get());
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

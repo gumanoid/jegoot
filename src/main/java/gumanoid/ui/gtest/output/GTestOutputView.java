@@ -14,10 +14,8 @@ import java.util.Map;
  * Created by Gumanoid on 09.01.2016.
  */
 public class GTestOutputView extends JScrollPane {
-    //todo also add raw output lines under collapsibles
-
     @VisibleForTesting
-    static final String TREE_NAME = "GTest_output_tree";
+    public static final String TREE_NAME = "GTest_output_tree";
 
     private final StyledTreeNode root;
     private final DefaultTreeModel model;

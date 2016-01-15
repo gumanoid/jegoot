@@ -12,7 +12,7 @@ import static org.mockito.Mockito.*;
  */
 @Test
 public class GTestOutputParserUTest {
-    GTestOutputParser.EventListener listener = mock(GTestOutputParser.EventListener.class);
+    ClassifiedGTestOutputHandler listener = mock(ClassifiedGTestOutputHandler.class);
     GTestOutputParser parser;
 
     @BeforeMethod void resetListener() {
@@ -22,19 +22,21 @@ public class GTestOutputParserUTest {
 
     @Test void suiteStart() throws Exception {
         parser.onNextLine("[==========] Running 3 tests from 2 test cases.");
-        verify(listener).suiteStart(3, 2);
+        verify(listener).suiteStart("[==========] Running 3 tests from 2 test cases.", 3, 2);
         verifyNoMoreInteractions(listener);
     }
 
     @Test void testEnvSetUp() throws Exception {
+        suiteStart();
         parser.onNextLine("[----------] Global test environment set-up.");
+        verify(listener).testOutput("[----------] Global test environment set-up.", Optional.empty(), Optional.empty());
         verifyZeroInteractions(listener);
     }
 
     @Test void groupStart() throws Exception {
         suiteStart();
         parser.onNextLine("[----------] 2 tests from SomeGroup");
-        verify(listener).groupStart("SomeGroup", 2);
+        verify(listener).groupStart("[----------] 2 tests from SomeGroup", "SomeGroup", 2);
         verifyNoMoreInteractions(listener);
     }
 
@@ -42,7 +44,7 @@ public class GTestOutputParserUTest {
         groupStart();
 
         parser.onNextLine("[ RUN      ] SomeGroup.TestIsTrue");
-        verify(listener).testStart("SomeGroup", "TestIsTrue");
+        verify(listener).testStart("[ RUN      ] SomeGroup.TestIsTrue", "SomeGroup", "TestIsTrue");
         verifyNoMoreInteractions(listener);
     }
 
@@ -50,7 +52,7 @@ public class GTestOutputParserUTest {
         testStart();
 
         parser.onNextLine("[       OK ] SomeGroup.TestIsTrue (0 ms)");
-        verify(listener).testPassed("SomeGroup", "TestIsTrue");
+        verify(listener).testPassed("[       OK ] SomeGroup.TestIsTrue (0 ms)", "SomeGroup", "TestIsTrue");
         verifyNoMoreInteractions(listener);
     }
 
@@ -58,13 +60,13 @@ public class GTestOutputParserUTest {
         testStart();
 
         parser.onNextLine("..\\..\\..\\test_samples\\main.cpp(12): error: Value of: 0 == 0");
-        verify(listener).testOutput(Optional.of("SomeGroup"), Optional.of("TestIsTrue"), "..\\..\\..\\test_samples\\main.cpp(12): error: Value of: 0 == 0");
+        verify(listener).testOutput("..\\..\\..\\test_samples\\main.cpp(12): error: Value of: 0 == 0", Optional.of("SomeGroup"), Optional.of("TestIsTrue"));
 
         parser.onNextLine("  Actual: true");
-        verify(listener).testOutput(Optional.of("SomeGroup"), Optional.of("TestIsTrue"), "  Actual: true");
+        verify(listener).testOutput("  Actual: true", Optional.of("SomeGroup"), Optional.of("TestIsTrue"));
 
         parser.onNextLine("Expected: false");
-        verify(listener).testOutput(Optional.of("SomeGroup"), Optional.of("TestIsTrue"), "Expected: false");
+        verify(listener).testOutput("Expected: false", Optional.of("SomeGroup"), Optional.of("TestIsTrue"));
 
         verifyNoMoreInteractions(listener);
     }
@@ -73,19 +75,21 @@ public class GTestOutputParserUTest {
         testStart();
 
         parser.onNextLine("[  FAILED  ] SomeGroup.TestIsTrue (1 ms)");
-        verify(listener).testFailed("SomeGroup", "TestIsTrue");
+        verify(listener).testFailed("[  FAILED  ] SomeGroup.TestIsTrue (1 ms)", "SomeGroup", "TestIsTrue");
         verifyNoMoreInteractions(listener);
     }
 
     @Test void groupEnd() throws Exception {
         groupStart();
         parser.onNextLine("[----------] 2 tests from SomeGroup (1 ms total)");
-        verify(listener).groupEnd("SomeGroup", 2);
+        verify(listener).groupEnd("[----------] 2 tests from SomeGroup (1 ms total)", "SomeGroup", 2);
         verifyNoMoreInteractions(listener);
     }
 
     @Test void testEnvTearDown() throws Exception {
+        groupEnd();
         parser.onNextLine("[----------] Global test environment tear-down");
+        verify(listener).testOutput("[----------] Global test environment tear-down", Optional.empty(), Optional.empty());
         verifyZeroInteractions(listener);
     }
 
@@ -93,7 +97,7 @@ public class GTestOutputParserUTest {
         suiteStart();
         parser.onNextLine("[==========] 3 tests from 2 test cases ran. (2005 ms total)");
 
-        verify(listener).suiteEnd(3, 2);
+        verify(listener).suiteEnd("[==========] 3 tests from 2 test cases ran. (2005 ms total)", 3, 2);
         verifyNoMoreInteractions(listener);
     }
 
@@ -107,10 +111,10 @@ public class GTestOutputParserUTest {
         parser.onNextLine("");
         parser.onNextLine(" 2 FAILED TESTS");
 
-        verify(listener).passedTestsSummary(1);
-        verify(listener).failedTestsSummary(2);
-        verify(listener).failedTestSummary("SomeGroup", "FailingTest");
-        verify(listener).failedTestSummary("OtherGroup", "LongTest");
+        verify(listener).passedTestsSummary("[  PASSED  ] 1 test.", 1);
+        verify(listener).failedTestsSummary("[  FAILED  ] 2 tests, listed below:", 2);
+        verify(listener).failedTestSummary("[  FAILED  ] SomeGroup.FailingTest", "SomeGroup", "FailingTest");
+        verify(listener).failedTestSummary("[  FAILED  ] OtherGroup.LongTest", "OtherGroup", "LongTest");
         verify(listener).summaryOutput("");
         verify(listener).summaryOutput(" 2 FAILED TESTS");
         verifyNoMoreInteractions(listener);

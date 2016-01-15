@@ -1,6 +1,7 @@
 package gumanoid.ui.gtest;
 
-import gumanoid.parser.GTestOutputParser;
+import com.google.common.annotations.VisibleForTesting;
+import gumanoid.parser.ClassifiedGTestOutputHandler;
 import gumanoid.runner.GTestRunner;
 import gumanoid.ui.gtest.output.GTestOutputView;
 
@@ -14,6 +15,13 @@ import java.util.Optional;
  * Created by Gumanoid on 10.01.2016.
  */
 public class GTestView extends JPanel { //todo this class needs more expressive name
+    @VisibleForTesting
+    static final String RUN_BUTTON_NAME = "GTest_view_run";
+    @VisibleForTesting
+    static final String CANCEL_BUTTON_NAME = "GTest_view_cancel";
+    @VisibleForTesting
+    static final String RERUN_BUTTON_NAME = "GTest_view_rerun";
+
     private final JButton runTests = new JButton("Run");
     private final JButton cancelTests = new JButton("Cancel");
     private final JButton rerunFailedTests = new JButton("Re-run failed");
@@ -41,6 +49,10 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         add(controls);
         add(testOutputView);
+
+        runTests.setName(RUN_BUTTON_NAME);
+        cancelTests.setName(CANCEL_BUTTON_NAME);
+        rerunFailedTests.setName(RERUN_BUTTON_NAME);
 
         cancelTests.setEnabled(false);
         rerunFailedTests.setEnabled(false);
@@ -85,8 +97,8 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         SwingUtilities.invokeLater(runTests::doClick);
     }
 
-    private GTestOutputParser.EventListener createHandler() {
-        return new GTestOutputParser.EventListener() {
+    private ClassifiedGTestOutputHandler createHandler() {
+        return new ClassifiedGTestOutputHandler() {
             boolean failsInSuite = false;
             boolean failsInGroup = false;
 
@@ -96,82 +108,76 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
             }
 
             @Override
-            public void suiteStart(int testCount, int testGroupCount) {
+            public void suiteStart(String outputLine, int testCount, int testGroupCount) {
                 testOutputView.atRoot()
                         .addCollapsible("suite", "Suite")
                         .setTextColor(Color.YELLOW);
+
+                testOutputView.at("suite").addOutputLine(outputLine);
             }
 
             @Override
-            public void suiteEnd(int testCount, int testGroupCount) {
-                testOutputView.atRoot()
-                        .addCollapsible("summary", "Summary")
-                        .setTextColor(failsInSuite? Color.RED : Color.GREEN);
+            public void suiteEnd(String outputLine, int testCount, int testGroupCount) {
+                testOutputView.at("suite").addOutputLine(outputLine);
 
                 if (!failsInSuite) {
                     testOutputView.at("suite").setTextColor(Color.GREEN);
                 }
+
+                testOutputView.atRoot()
+                        .addCollapsible("summary", "Summary")
+                        .setTextColor(failsInSuite? Color.RED : Color.GREEN);
             }
 
             @Override
-            public void groupStart(String groupName, int testsInGroup) {
+            public void groupStart(String outputLine, String groupName, int testsInGroup) {
                 failsInGroup = false;
                 testOutputView.at("suite").addCollapsible(groupName, groupName + " with " + testsInGroup + " test(s)");
+                testOutputView.at("suite", groupName).addOutputLine(outputLine);
             }
 
             @Override
-            public void groupEnd(String groupName, int testsInGroup) {
+            public void groupEnd(String outputLine, String groupName, int testsInGroup) {
                 if (!failsInGroup) {
                     testOutputView.at("suite", groupName).setTextColor(Color.GREEN);
                 }
-            }
 
-            @Override
-            public void testStart(String groupName, String testName) {
-                testOutputView.at("suite", groupName).addCollapsible(testName, testName);
-            }
-
-            @Override
-            public void testOutput(Optional<String> groupName, Optional<String> testName, String outputLine) {
-                if (groupName.isPresent()) {
-                    if (testName.isPresent()) {
-                        testOutputView.at("suite", groupName.get(), testName.get()).addOutputLine(outputLine);
-                    } else {
-                        testOutputView.at("suite", groupName.get()).addOutputLine(outputLine);
-                    }
-                } else {
-                    testOutputView.at("suite").addOutputLine(outputLine);
+                if (outputLine != null) { //todo Optional instead of nullable, for consistency?
+                    testOutputView.at("suite", groupName).addOutputLine(outputLine);
                 }
             }
 
             @Override
-            public void testPassed(String groupName, String testName) {
-                testOutputView.at("suite", groupName, testName).setTextColor(Color.GREEN);
+            public void testStart(String outputLine, String groupName, String testName) {
+                testOutputView.at("suite", groupName).addCollapsible(testName, testName);
+                testOutputView.at("suite", groupName, testName).addOutputLine(outputLine);
             }
 
             @Override
-            public void testFailed(String groupName, String testName) {
+            public void testOutput(String outputLine, Optional<String> groupName, Optional<String> testName) {
+                (
+                        groupName.isPresent() ? testName.isPresent()
+                                ? testOutputView.at("suite", groupName.get(), testName.get())
+                                : testOutputView.at("suite", groupName.get())
+                                : testOutputView.at("suite")
+                ).addOutputLine(outputLine);
+            }
+
+            @Override
+            public void testPassed(String outputLine, String groupName, String testName) {
+                testOutputView.at("suite", groupName, testName).setTextColor(Color.GREEN);
+                testOutputView.at("suite", groupName, testName).addOutputLine(outputLine);
+            }
+
+            @Override
+            public void testFailed(String outputLine, String groupName, String testName) {
                 failsInGroup = true;
                 failsInSuite = true;
 
                 testOutputView.at("suite").setTextColor(Color.RED);
                 testOutputView.at("suite", groupName).setTextColor(Color.RED);
                 testOutputView.at("suite", groupName, testName).setTextColor(Color.RED);
-            }
-
-            @Override
-            public void passedTestsSummary(int passedTestCount) {
-                testOutputView.at("summary").addOutputLine("Passed test(s): " + passedTestCount);
-            }
-
-            @Override
-            public void failedTestsSummary(int failedTestCount) {
-                testOutputView.at("summary").addOutputLine("Failed test(s): " + failedTestCount);
-            }
-
-            @Override
-            public void failedTestSummary(String groupName, String failedTest) {
-                testOutputView.at("summary").addOutputLine("Failed test: " + failedTest + " in group " + groupName);
+                testOutputView.at("suite", groupName, testName).addOutputLine(outputLine);
             }
 
             @Override
