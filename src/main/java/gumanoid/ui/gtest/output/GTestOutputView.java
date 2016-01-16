@@ -14,6 +14,10 @@ import java.util.Map;
  * Created by Gumanoid on 09.01.2016.
  */
 public class GTestOutputView extends JScrollPane {
+    //todo breadcrumbs
+    //todo highlight background of children of selected branch
+    //to simplify figuring out when test output is finished
+
     @VisibleForTesting
     public static final String TREE_NAME = "GTest_output_tree";
 
@@ -44,65 +48,62 @@ public class GTestOutputView extends JScrollPane {
         model.nodeStructureChanged(root);
     }
 
-    public class StyleOpsAtPath {
+    public class Item {
+        //todo naming
+        //todo return void from all methods
+
         protected final StyledTreeNode node;
 
-        public StyleOpsAtPath(StyledTreeNode node) {
+        public Item(StyledTreeNode node) {
             this.node = node;
         }
 
-        public StyleOpsAtPath setDisplayName(String displayName) {
+        public Item createCollapsible(String pathKey, String displayName) {
+            StyledTreeNode newBranch = new StyledTreeNode(displayName);
+            newBranch.setUserObject(new HashMap<String, StyledTreeNode>());
+            childrenIndex(node).put(pathKey, newBranch);
+            addChildNode(node, newBranch);
+
+            return new Item(newBranch);
+        }
+
+        public Item createOutputLine(String outputLine) {
+            StyledTreeNode newLeaf = new StyledTreeNode(outputLine);
+            addChildNode(node, newLeaf);
+
+            return new Item(newLeaf);
+        }
+
+        public Item setDisplayName(String displayName) {
             node.setDisplayName(displayName);
             model.nodeChanged(node);
             return this;
         }
 
-        public StyleOpsAtPath setIcon(Icon icon) {
+        public Item setIcon(Icon icon) {
             node.setIcon(icon);
             model.nodeChanged(node);
             return this;
         }
 
-        public StyleOpsAtPath setTextColor(Color color) {
+        public Item setTextColor(Color color) {
             node.setTextColor(color);
             model.nodeChanged(node);
             return this;
         }
     }
 
-    public class OpsAtPath extends StyleOpsAtPath {
-        public OpsAtPath(StyledTreeNode node) {
-            super(node);
-        }
-
-        public StyleOpsAtPath addCollapsible(String pathKey, String displayName) {
-            StyledTreeNode newBranch = new StyledTreeNode(displayName);
-            newBranch.setUserObject(new HashMap<String, StyledTreeNode>());
-            childrenIndex(node).put(pathKey, newBranch);
-            addChildNode(node, newBranch);
-
-            return new StyleOpsAtPath(newBranch);
-        }
-
-        public StyleOpsAtPath addOutputLine(String outputLine) {
-            StyledTreeNode newLeaf = new StyledTreeNode(outputLine);
-            addChildNode(node, newLeaf);
-
-            return new StyleOpsAtPath(newLeaf);
-        }
+    public Item atRoot() {
+        return new Item(root);
     }
 
-    public OpsAtPath atRoot() {
-        return new OpsAtPath(root);
-    }
-
-    public OpsAtPath at(String... pathKeys) {
+    public Item at(String... pathKeys) {
         StyledTreeNode node = root;
         for (String pathKey : pathKeys) {
             node = childrenIndex(node).get(pathKey);
             Preconditions.checkState(node != null);
         }
-        return new OpsAtPath(node);
+        return new Item(node);
     }
 
     private Map<String, StyledTreeNode> childrenIndex(StyledTreeNode node) {

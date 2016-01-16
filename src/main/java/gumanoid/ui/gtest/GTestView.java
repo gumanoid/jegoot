@@ -90,6 +90,7 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
             @Override
             protected void onFinish(SuiteResult result) {
+                //todo handle non-zero exitCode, for a case when test process crashed
                 finish(result.failedTests);
             }
         }));
@@ -104,36 +105,36 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
             @Override
             public void outputBeforeSuiteStarted(String outputLine) {
-                testOutputView.atRoot().addOutputLine(outputLine);
+                testOutputView.atRoot().createOutputLine(outputLine);
             }
 
             @Override
             public void suiteStart(String outputLine, int testCount, int testGroupCount) {
                 testOutputView.atRoot()
-                        .addCollapsible("suite", "Suite")
+                        .createCollapsible("suite", "Suite")
                         .setTextColor(Color.YELLOW);
 
-                testOutputView.at("suite").addOutputLine(outputLine);
+                testOutputView.at("suite").createOutputLine(outputLine);
             }
 
             @Override
             public void suiteEnd(String outputLine, int testCount, int testGroupCount) {
-                testOutputView.at("suite").addOutputLine(outputLine);
+                testOutputView.at("suite").createOutputLine(outputLine);
 
                 if (!failsInSuite) {
                     testOutputView.at("suite").setTextColor(Color.GREEN);
                 }
 
                 testOutputView.atRoot()
-                        .addCollapsible("summary", "Summary")
+                        .createCollapsible("summary", "Summary")
                         .setTextColor(failsInSuite? Color.RED : Color.GREEN);
             }
 
             @Override
             public void groupStart(String outputLine, String groupName, int testsInGroup) {
                 failsInGroup = false;
-                testOutputView.at("suite").addCollapsible(groupName, groupName + " with " + testsInGroup + " test(s)");
-                testOutputView.at("suite", groupName).addOutputLine(outputLine);
+                testOutputView.at("suite").createCollapsible(groupName, groupName + " with " + testsInGroup + " test(s)");
+                testOutputView.at("suite", groupName).createOutputLine(outputLine);
             }
 
             @Override
@@ -143,14 +144,14 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
                 }
 
                 if (outputLine != null) { //todo Optional instead of nullable, for consistency?
-                    testOutputView.at("suite", groupName).addOutputLine(outputLine);
+                    testOutputView.at("suite", groupName).createOutputLine(outputLine);
                 }
             }
 
             @Override
             public void testStart(String outputLine, String groupName, String testName) {
-                testOutputView.at("suite", groupName).addCollapsible(testName, testName);
-                testOutputView.at("suite", groupName, testName).addOutputLine(outputLine);
+                testOutputView.at("suite", groupName).createCollapsible(testName, testName);
+                testOutputView.at("suite", groupName, testName).createOutputLine(outputLine);
             }
 
             @Override
@@ -160,13 +161,13 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
                                 ? testOutputView.at("suite", groupName.get(), testName.get())
                                 : testOutputView.at("suite", groupName.get())
                                 : testOutputView.at("suite")
-                ).addOutputLine(outputLine);
+                ).createOutputLine(outputLine);
             }
 
             @Override
             public void testPassed(String outputLine, String groupName, String testName) {
                 testOutputView.at("suite", groupName, testName).setTextColor(Color.GREEN);
-                testOutputView.at("suite", groupName, testName).addOutputLine(outputLine);
+                testOutputView.at("suite", groupName, testName).createOutputLine(outputLine);
             }
 
             @Override
@@ -177,12 +178,12 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
                 testOutputView.at("suite").setTextColor(Color.RED);
                 testOutputView.at("suite", groupName).setTextColor(Color.RED);
                 testOutputView.at("suite", groupName, testName).setTextColor(Color.RED);
-                testOutputView.at("suite", groupName, testName).addOutputLine(outputLine);
+                testOutputView.at("suite", groupName, testName).createOutputLine(outputLine);
             }
 
             @Override
             public void summaryOutput(String outputLine) {
-                testOutputView.at("summary").addOutputLine(outputLine);
+                testOutputView.at("summary").createOutputLine(outputLine);
             }
         };
     }

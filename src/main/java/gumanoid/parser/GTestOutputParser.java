@@ -1,7 +1,6 @@
 package gumanoid.parser;
 
 import java.util.Optional;
-import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,22 +15,8 @@ import static java.lang.Integer.parseInt;
  * Created by Gumanoid on 07.01.2016.
  */
 public class GTestOutputParser {
-    private static final Pattern SUITE_START_PATTERN = Pattern.compile(" Running (\\d+) test[s]? from (\\d+) test case[s]?\\.$");
-    private static final Pattern SUITE_END_PATTERN = Pattern.compile(" (\\d+) test[s]? from (\\d+) test case[s]? ran\\.(?: \\((\\d+) ms total\\))?$");
-
-    private static final Pattern TEST_ENV_SETUP_PATTERN = Pattern.compile(" Global test environment set-up\\.$");
-    private static final Pattern TEST_ENV_TEARDOWN_PATTERN = Pattern.compile(" Global test environment tear-down$");
-
-    private static final Pattern GROUP_BOUNDARY = Pattern.compile(" (\\d+) test[s]? from (\\w+)(?: \\((\\d+) ms total\\))?$");
-
-    private static final Pattern TEST_START_PATTERN = Pattern.compile(" (\\w+)\\.(\\w+)$");
-    private static final Pattern TEST_PASSED_PATTERN = Pattern.compile(" (\\w+)\\.(\\w+)(?: \\((\\d+) ms\\))?$");
-    private static final Pattern TEST_FAILED_PATTERN = Pattern.compile(" (\\w+)\\.(\\w+)(?: \\((\\d+) ms\\))?$");
-
-    private static final Pattern PASSED_SUMMARY_PATTERN = Pattern.compile(" (\\d+) test[s]?\\.$");
-    private static final Pattern FAILED_SUMMARY_PATTERN = Pattern.compile(" (\\d+) test[s]?, listed below:$");
-
     private final ClassifiedGTestOutputHandler listener;
+    private final LineMatcher isSpecialLine;
 
     private enum SuiteState { NotStarted, Running, Finished}
 
@@ -42,90 +27,167 @@ public class GTestOutputParser {
 
     public GTestOutputParser(ClassifiedGTestOutputHandler listener) {
         this.listener = listener;
+
+        //@formatter: off
+        isSpecialLine = firstOf(
+                ifStartsWith("[==========]", firstOf(
+                        ifMatches(" Running (\\d+) test[s]? from (\\d+) test case[s]?\\.$", this::suiteStart),
+                        ifMatches(" (\\d+) test[s]? from (\\d+) test case[s]? ran\\.(?: \\((\\d+) ms total\\))?$", this::suiteEnd)
+                )),
+                ifStartsWith("[----------]", firstOf(
+                        ifMatches(" Global test environment set-up\\.$", this::envSetUp),
+                        ifMatches(" Global test environment tear-down$", this::envTearDown),
+                        ifMatches(" (\\d+) test[s]? from (\\w+)(?: \\((\\d+) ms total\\))?$", this::groupBoundary)
+                )),
+                ifStartsWith("[ RUN      ]", firstOf(
+                        ifMatches(" (\\w+)\\.(\\w+)$", this::testStart)
+                )),
+                ifStartsWith("[       OK ]", firstOf(
+                        ifRunningAnd(ifMatches(" (\\w+)\\.(\\w+)(?: \\((\\d+) ms\\))?$", this::testPassed))
+                )),
+                ifStartsWith("[  PASSED  ]", firstOf(
+                        ifFinishedAnd(ifMatches(" (\\d+) test[s]?\\.$", this::passedTestsSummary))
+                )),
+                ifStartsWith("[  FAILED  ]", firstOf(
+                        ifRunningAnd(ifMatches(" (\\w+)\\.(\\w+)(?: \\((\\d+) ms\\))?$", this::testFailed)),
+                        ifFinishedAnd(ifMatches(" (\\w+)\\.(\\w+)(?: \\((\\d+) ms\\))?$", this::failedTestsSummary)),
+                        ifFinishedAnd(ifMatches(" (\\d+) test[s]?, listed below:$", this::failedSummary))
+                ))
+        );
+        //@formatter: on
     }
 
     public void onNextLine(String line) {
-        boolean specialLine =
-                //@formatter: off
-                prefix(line, "[==========]", (str, index) ->
-                        pattern(str, index, SUITE_START_PATTERN, args -> suiteStart(args[0], parseInt(args[1]), parseInt(args[2])))
-                        ||
-                        pattern(str, index, SUITE_END_PATTERN, args -> suiteEnd(args[0], parseInt(args[1]), parseInt(args[2])))
-                ) ||
-                prefix(line, "[----------]", (str, index) ->
-                        pattern(str, index, TEST_ENV_SETUP_PATTERN, args -> envSetUp(args[0]))
-                        ||
-                        pattern(str, index, TEST_ENV_TEARDOWN_PATTERN, args -> envTearDown(args[0]))
-                        ||
-                        pattern(str, index, GROUP_BOUNDARY, args -> groupBoundary(args[0], args[2], parseInt(args[1])))
-                ) ||
-                prefix(line, "[ RUN      ]", (str, index) ->
-                        pattern(str, index, TEST_START_PATTERN, args -> testStart(args[0], args[1], args[2]))
-                ) ||
-                prefix(line, "[       OK ]", (str, index) ->
-                        running() && pattern(str, index, TEST_PASSED_PATTERN, args -> testPassed(args[0], args[1], args[2]))
-                ) ||
-                prefix(line, "[  PASSED  ]", (str, index) ->
-                        finished() && pattern(str, index, PASSED_SUMMARY_PATTERN, args -> passedSummary(args[0], parseInt(args[1])))
-                ) ||
-                prefix(line, "[  FAILED  ]", (str, index) ->
-                        (running() && pattern(str, index, TEST_FAILED_PATTERN, args -> testFailed(args[0], args[1], args[2])))
-                        ||
-                        (finished() && pattern(str, index, TEST_FAILED_PATTERN, args -> failedTestSummary(args[0], args[1], args[2])))
-                        ||
-                        (finished() && pattern(str, index, FAILED_SUMMARY_PATTERN, args -> failedSummary(args[0], parseInt(args[1]))))
-                );
-                //@formatter: on
+        if (!isSpecialLine.test(line, 0)) {
+            switch (suiteState) {
+                case NotStarted:
+                    listener.outputBeforeSuiteStarted(line);
+                    break;
 
-        if (!specialLine) {
-            regularOutput(line);
+                case Running:
+                    listener.testOutput(line, currentGroup, currentTest);
+                    break;
+
+                case Finished:
+                    listener.summaryOutput(line);
+                    break;
+            }
         }
     }
 
-    private void regularOutput(String line) {
-        switch (suiteState) {
-            case NotStarted:
-                listener.outputBeforeSuiteStarted(line);
-                break;
+    @FunctionalInterface
+    private interface LineMatcher {
+        boolean test(String line, int startIndex);
+    }
 
-            case Running:
-                listener.testOutput(line, currentGroup, currentTest);
-                break;
+    /**
+     * Second stage of GTest output classification.
+     * <p/>
+     * If <code>line</code>, started at <code>startIndex</code>, matches
+     * <code>pattern</code>, then this line and <code>pattern</code> capture
+     * groups are passed to <code>onMatch</code> consumer, and true is returned
+     *
+     * @param pattern       regular expression to match <code>line</code> against
+     * @param line          GTest output line to match
+     * @param startIndex    index to start matching from
+     * @param onMatch       what to do if <code>line</code> matches <code>pattern</code>
+     * @return whether <code>line</code> (from <code>startIndex</code>) matches <code>pattern</code>
+     */
+    LineMatcher ifMatches(String regex, Consumer<String[]> onMatch) {
+        Pattern pattern = Pattern.compile(regex);
 
-            case Finished:
-                listener.summaryOutput(line);
-                break;
+        return (line, startIndex) -> {
+            Matcher matcher = pattern.matcher(line);
+            boolean matches = matcher.find(startIndex);
+            if (matches) {
+                onMatch.accept(getArgs(line, matcher));
+            }
+            return matches;
+        };
+    }
+
+    /**
+     * First stage of GTest output classification.
+     * <p/>
+     * If <code>line</code> starts with <code>prefix</code>, then this <code>line</code> and
+     * <code>prefix</code> length are passed to <code>onMatch</code> continuation predicate,
+     * and this predicate's return value is returned
+     *
+     * @param prefix     string which <code>line</code> should start from for the <code>onMatch</code>
+     *                   continuation predicate to be invoked
+     * @param line       string to check for being started with <code>prefix</code>
+     * @param onMatch    continuation predicate to invoke if <code>line</code> is started with
+     *                   <code>prefix</code>
+     * @return continuation's return value, if <code>line</code> starts with <code>prefix</code>;
+     * false otherwise
+     */
+    LineMatcher ifStartsWith(String prefix, LineMatcher onMatch) {
+        return (line, startIndex) -> line.startsWith(prefix, startIndex) && onMatch.test(line, prefix.length());
+    }
+
+    /**
+     * Acts like an 'or' with short-circuiting
+     *
+     * @param first
+     * @param others
+     * @return
+     */
+    LineMatcher firstOf(LineMatcher first, LineMatcher... others) {
+        LineMatcher result = first;
+
+        for (LineMatcher predicate : others) {
+            LineMatcher chain = result;
+            result = (line, index) -> chain.test(line, index) || predicate.test(line, index);
         }
+
+        return result;
     }
 
-    private void envSetUp(String outputLine) {
-        assert running();
-
-        listener.testOutput(outputLine, Optional.empty(), Optional.empty());
-    }
-
-    private void envTearDown(String outputLine) {
-        assert running();
-
-        ensureGroupEnded();
-
-        listener.testOutput(outputLine, Optional.empty(), Optional.empty());
-    }
-
-    private void suiteStart(String outputLine, int testCount, int groupCount) {
+    private void suiteStart(String[] args) {
         assert suiteState == SuiteState.NotStarted;
 
         suiteState = SuiteState.Running;
-        listener.suiteStart(outputLine, testCount, groupCount);
+        listener.suiteStart(args[0], parseInt(args[1]), parseInt(args[2]));
     }
 
-    private void suiteEnd(String outputLine, int testCount, int groupCount) {
+    private void suiteEnd(String[] args) {
         assert running();
 
         ensureGroupEnded();
 
         suiteState = SuiteState.Finished;
-        listener.suiteEnd(outputLine, testCount, groupCount);
+        listener.suiteEnd(args[0], parseInt(args[1]), parseInt(args[2]));
+    }
+
+    private void envSetUp(String[] args) {
+        assert running();
+
+        listener.testOutput(args[0], Optional.empty(), Optional.empty());
+    }
+
+    private void envTearDown(String[] args) {
+        assert running();
+
+        ensureGroupEnded();
+
+        listener.testOutput(args[0], Optional.empty(), Optional.empty());
+    }
+
+    private void groupBoundary(String[] args) {
+        assert running();
+
+        int testCount = parseInt(args[1]);
+
+        if (currentGroup.isPresent() && currentGroup.get().equals(args[2])) {
+            currentGroup = Optional.empty();
+            listener.groupEnd(args[0], args[2], testCount);
+        } else {
+            ensureGroupEnded();
+
+            currentGroup = Optional.of(args[2]);
+            testsInCurrentGroup = testCount;
+            listener.groupStart(args[0], args[2], testCount);
+        }
     }
 
     private void ensureGroupEnded() {
@@ -139,55 +201,48 @@ public class GTestOutputParser {
         }
     }
 
-    private void groupBoundary(String outputLine, String groupName, int testCount) {
-        assert running();
-
-        if (currentGroup.isPresent() && currentGroup.get().equals(groupName)) {
-            currentGroup = Optional.empty();
-            listener.groupEnd(outputLine, groupName, testCount);
-        } else {
-            ensureGroupEnded();
-
-            currentGroup = Optional.of(groupName);
-            testsInCurrentGroup = testCount;
-            listener.groupStart(outputLine, groupName, testCount);
-        }
-    }
-
-    private void testStart(String outputLine, String groupName, String testName) {
-        assert currentGroup.isPresent() && currentGroup.get().equals(groupName);
+    private void testStart(String[] args) {
+        assert currentGroup.isPresent() && currentGroup.get().equals(args[1]);
         assert !currentTest.isPresent();
 
-        currentTest = Optional.of(testName);
-        listener.testStart(outputLine, groupName, testName);
+        currentTest = Optional.of(args[2]);
+        listener.testStart(args[0], args[1], args[2]);
     }
 
-    private void testPassed(String outputLine, String groupName, String testName) {
-        assert currentGroup.isPresent() && currentGroup.get().equals(groupName);
-        assert currentTest.isPresent() && currentTest.get().equals(testName);
+    private void testPassed(String[] args) {
+        assert currentGroup.isPresent() && currentGroup.get().equals(args[1]);
+        assert currentTest.isPresent() && currentTest.get().equals(args[2]);
 
         currentTest = Optional.empty();
-        listener.testPassed(outputLine, groupName, testName);
+        listener.testPassed(args[0], args[1], args[2]);
     }
 
-    private void testFailed(String outputLine, String groupName, String testName) {
-        assert currentGroup.isPresent() && currentGroup.get().equals(groupName);
-        assert currentTest.isPresent() && currentTest.get().equals(testName);
+    private void testFailed(String[] args) {
+        assert currentGroup.isPresent() && currentGroup.get().equals(args[1]);
+        assert currentTest.isPresent() && currentTest.get().equals(args[2]);
 
         currentTest = Optional.empty();
-        listener.testFailed(outputLine, groupName, testName);
+        listener.testFailed(args[0], args[1], args[2]);
     }
 
-    private void passedSummary(String outputLine, int passedTestCount) {
-        listener.passedTestsSummary(outputLine, passedTestCount);
+    private void passedTestsSummary(String[] args) {
+        listener.passedTestsSummary(args[0], parseInt(args[1]));
     }
 
-    private void failedTestSummary(String outputLine, String groupName, String testName) {
-        listener.failedTestSummary(outputLine, groupName, testName);
+    private void failedTestsSummary(String[] args) {
+        listener.failedTestSummary(args[0], args[1], args[2]);
     }
 
-    private void failedSummary(String outputLine, int failedTestCount) {
-        listener.failedTestsSummary(outputLine, failedTestCount);
+    private void failedSummary(String[] args) {
+        listener.failedTestsSummary(args[0], parseInt(args[1]));
+    }
+
+    private LineMatcher ifRunningAnd(LineMatcher continuation) {
+        return (line, startIndex) -> running() && continuation.test(line, startIndex);
+    }
+
+    private LineMatcher ifFinishedAnd(LineMatcher continuation) {
+        return (line, startIndex) -> finished() && continuation.test(line, startIndex);
     }
 
     private boolean running() {
@@ -196,19 +251,6 @@ public class GTestOutputParser {
 
     private boolean finished() {
         return suiteState == SuiteState.Finished;
-    }
-
-    private static boolean prefix(String line, String prefix, BiPredicate<String, Integer> onMatch) {
-        return line.startsWith(prefix) && onMatch.test(line, prefix.length());
-    }
-
-    private static boolean pattern(String line, int startIndex, Pattern pattern, Consumer<String[]> onMatch) {
-        Matcher matcher = pattern.matcher(line);
-        boolean matches = matcher.find(startIndex);
-        if (matches) {
-            onMatch.accept(getArgs(line, matcher));
-        }
-        return matches;
     }
 
     private static String[] getArgs(String line, Matcher matcher) {

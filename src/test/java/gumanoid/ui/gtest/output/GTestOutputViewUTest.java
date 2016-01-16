@@ -50,13 +50,13 @@ public class GTestOutputViewUTest {
 
     @Test(dataProvider = "simpleOutputData")
     void singleLeafUnderRoot(String outputLine) throws Exception {
-        outputView.atRoot().addOutputLine(outputLine);
+        outputView.atRoot().createOutputLine(outputLine);
         assertEquals(window.tree(GTestOutputView.TREE_NAME).valueAt(0), outputLine);
     }
 
     @Test(dataProvider = "simpleOutputData")
     void singleBranchUnderRoot(String outputLine) throws Exception {
-        outputView.atRoot().addCollapsible("suite", outputLine);
+        outputView.atRoot().createCollapsible("suite", outputLine);
         assertEquals(window.tree(GTestOutputView.TREE_NAME).valueAt(0), outputLine);
     }
 }
