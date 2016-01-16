@@ -1,5 +1,7 @@
 package gumanoid.parser;
 
+import com.google.common.base.Preconditions;
+
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -83,15 +85,13 @@ public class GTestOutputParser {
     /**
      * Second stage of GTest output classification.
      * <p/>
-     * If <code>line</code>, started at <code>startIndex</code>, matches
-     * <code>pattern</code>, then this line and <code>pattern</code> capture
-     * groups are passed to <code>onMatch</code> consumer, and true is returned
+     * Constructs regexp-based LineMatcher. If input matches
+     * <code>regex</code>, then input line and <code>regex</code> capture
+     * groups are passed to <code>onMatch</code> consumer, and LineMatcher returns true
      *
-     * @param pattern       regular expression to match <code>line</code> against
-     * @param line          GTest output line to match
-     * @param startIndex    index to start matching from
+     * @param regex       regular expression to match <code>line</code> against
      * @param onMatch       what to do if <code>line</code> matches <code>pattern</code>
-     * @return whether <code>line</code> (from <code>startIndex</code>) matches <code>pattern</code>
+     * @return LineMatcher which tells whether input matches <code>regex</code>
      */
     LineMatcher ifMatches(String regex, Consumer<String[]> onMatch) {
         Pattern pattern = Pattern.compile(regex);
@@ -109,17 +109,16 @@ public class GTestOutputParser {
     /**
      * First stage of GTest output classification.
      * <p/>
-     * If <code>line</code> starts with <code>prefix</code>, then this <code>line</code> and
-     * <code>prefix</code> length are passed to <code>onMatch</code> continuation predicate,
-     * and this predicate's return value is returned
+     * Constructs string prefix based LineMatcher. If input starts with <code>prefix</code>, then input
+     * line (with startIndex increased by <code>prefix</code> length) is passed to <code>onMatch</code>
+     * continuation predicate, and that predicate's return value is returned
      *
      * @param prefix     string which <code>line</code> should start from for the <code>onMatch</code>
      *                   continuation predicate to be invoked
-     * @param line       string to check for being started with <code>prefix</code>
      * @param onMatch    continuation predicate to invoke if <code>line</code> is started with
      *                   <code>prefix</code>
-     * @return continuation's return value, if <code>line</code> starts with <code>prefix</code>;
-     * false otherwise
+     * @return LineMatcher which tells if input line starts with <code>prefix</code> <b>and</b>
+     * continuation LineMather returns true for the rest of the input line (after prefix)
      */
     LineMatcher ifStartsWith(String prefix, LineMatcher onMatch) {
         return (line, startIndex) -> line.startsWith(prefix, startIndex) && onMatch.test(line, prefix.length());
@@ -144,14 +143,14 @@ public class GTestOutputParser {
     }
 
     private void suiteStart(String[] args) {
-        assert suiteState == SuiteState.NotStarted;
+        Preconditions.checkState(suiteState == SuiteState.NotStarted);
 
         suiteState = SuiteState.Running;
         listener.suiteStart(args[0], parseInt(args[1]), parseInt(args[2]));
     }
 
     private void suiteEnd(String[] args) {
-        assert running();
+        Preconditions.checkState(running());
 
         ensureGroupEnded();
 
@@ -160,13 +159,13 @@ public class GTestOutputParser {
     }
 
     private void envSetUp(String[] args) {
-        assert running();
+        Preconditions.checkState(running());
 
         listener.testOutput(args[0], Optional.empty(), Optional.empty());
     }
 
     private void envTearDown(String[] args) {
-        assert running();
+        Preconditions.checkState(running());
 
         ensureGroupEnded();
 
@@ -174,7 +173,7 @@ public class GTestOutputParser {
     }
 
     private void groupBoundary(String[] args) {
-        assert running();
+        Preconditions.checkState(running());
 
         int testCount = parseInt(args[1]);
 
@@ -202,24 +201,24 @@ public class GTestOutputParser {
     }
 
     private void testStart(String[] args) {
-        assert currentGroup.isPresent() && currentGroup.get().equals(args[1]);
-        assert !currentTest.isPresent();
+        Preconditions.checkState(currentGroup.isPresent() && currentGroup.get().equals(args[1]));
+        Preconditions.checkState(!currentTest.isPresent());
 
         currentTest = Optional.of(args[2]);
         listener.testStart(args[0], args[1], args[2]);
     }
 
     private void testPassed(String[] args) {
-        assert currentGroup.isPresent() && currentGroup.get().equals(args[1]);
-        assert currentTest.isPresent() && currentTest.get().equals(args[2]);
+        Preconditions.checkState(currentGroup.isPresent() && currentGroup.get().equals(args[1]));
+        Preconditions.checkState(currentTest.isPresent() && currentTest.get().equals(args[2]));
 
         currentTest = Optional.empty();
         listener.testPassed(args[0], args[1], args[2]);
     }
 
     private void testFailed(String[] args) {
-        assert currentGroup.isPresent() && currentGroup.get().equals(args[1]);
-        assert currentTest.isPresent() && currentTest.get().equals(args[2]);
+        Preconditions.checkState(currentGroup.isPresent() && currentGroup.get().equals(args[1]));
+        Preconditions.checkState(currentTest.isPresent() && currentTest.get().equals(args[2]));
 
         currentTest = Optional.empty();
         listener.testFailed(args[0], args[1], args[2]);
