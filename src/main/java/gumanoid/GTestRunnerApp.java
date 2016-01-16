@@ -19,8 +19,8 @@ import java.nio.file.Paths;
 //done Checkpoint 1: Select test executable, run it and show it's output in UI
 //done Keep all output lines, don't skip
 //done Parser tests: re-check binary output; test that 'env set up / tear down' lines are passed to handler
-//todo UI polishing: status icons
-//todo UI polishing: expanded/collapsed icons
+//done UI polishing: status icons
+//done UI polishing: expanded/collapsed icons
 //todo UI polishing: icons animation
 //done UI polishing: colors
 //todo UI polishing: two-section progress bar, to show failed/passed ratio
@@ -48,7 +48,7 @@ public class GTestRunnerApp {
             if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                 String testExePath = fileChooser.getSelectedFile().toString();
 
-                GTestView testView = new GTestView(testExePath);
+                GTestView testView = new GTestView();
                 GTestViewController controller = new GTestViewController(testView, testExePath);
 
                 JFrame mainWindow = new JFrame("Title");

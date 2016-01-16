@@ -200,7 +200,7 @@ public class GTestViewIT {
     void checkTestSamplesOutput(String testExeName, String[] expectedOutput) throws Exception {
         String testExePath = new File(testSamplesDir, testExeName).getAbsolutePath();
 
-        ui.getContentPane().add(testView = new GTestView(testExePath), BorderLayout.CENTER);
+        ui.getContentPane().add(testView = new GTestView(), BorderLayout.CENTER);
         JTreeFixture tree = window.tree(GTestOutputView.TREE_NAME);
         new GTestViewController(testView, testExePath).runAllTests(); //todo it's UI test, it should press buttons, not call controller methods
 

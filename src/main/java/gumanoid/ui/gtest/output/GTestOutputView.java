@@ -2,6 +2,7 @@ package gumanoid.ui.gtest.output;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import gumanoid.ui.Icons;
 import gumanoid.ui.tree.StyledTreeNode;
 import gumanoid.ui.tree.StyledTreeNodeRenderer;
 
@@ -22,6 +23,13 @@ public class GTestOutputView extends JScrollPane {
 
     @VisibleForTesting
     public static final String TREE_NAME = "GTest_output_tree";
+
+    static final Icon TEST_PASSED_ICON = Icons.load("test_passed.png");
+    static final Icon TEST_FAILED_ICON = Icons.load("test_failed.png");
+    static final Icon GROUP_PASSED_ICON = Icons.load("group_passed.png");
+    static final Icon GROUP_FAILED_ICON = Icons.load("group_failed.png");
+    static final Icon SUITE_PASSED_ICON = Icons.load("suite_passed.png");
+    static final Icon SUITE_FAILED_ICON = Icons.load("suite_failed.png");
 
     private final StyledTreeNode root;
     private final DefaultTreeModel model;

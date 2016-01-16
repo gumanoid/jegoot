@@ -14,8 +14,8 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     private final GTestOutputView tree;
     private final EventDispatcher<GTestOutputEvent> eventDispatcher;
 
-    boolean failsInSuite = false;
-    boolean failsInGroup = false;
+    private boolean failsInSuite = false;
+    private boolean failsInGroup = false;
 
     public GTestOutputViewController(GTestOutputView tree) {
         this.tree = tree;
@@ -71,10 +71,13 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     private void suiteEnd(SuiteEnd e) {
-        tree.at("suite").createOutputLine(e.outputLine);
+        GTestOutputView.Item suiteNode = tree.at("suite");
+
+        suiteNode.createOutputLine(e.outputLine);
 
         if (!failsInSuite) {
-            tree.at("suite").setTextColor(Color.GREEN);
+            suiteNode.setTextColor(Color.GREEN);
+            suiteNode.setIcon(GTestOutputView.SUITE_PASSED_ICON);
         }
 
         GTestOutputView.Item summaryNode = tree.atRoot().createCollapsible("summary", "Summary");
@@ -93,6 +96,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
 
         if (!failsInGroup) {
             groupNode.setTextColor(Color.GREEN);
+            groupNode.setIcon(GTestOutputView.GROUP_PASSED_ICON);
         }
 
         if (e.outputLine != null) { //todo Optional instead of nullable, for consistency?
@@ -118,6 +122,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     private void testPassed(TestPassed e) {
         GTestOutputView.Item testNode = tree.at("suite", e.groupName, e.testName);
         testNode.setTextColor(Color.GREEN);
+        testNode.setIcon(GTestOutputView.TEST_PASSED_ICON);
         testNode.createOutputLine(e.outputLine);
     }
 
@@ -125,10 +130,17 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         failsInGroup = true;
         failsInSuite = true;
 
-        tree.at("suite").setTextColor(Color.RED);
-        tree.at("suite", e.groupName).setTextColor(Color.RED);
+        GTestOutputView.Item suiteNode = tree.at("suite");
+        GTestOutputView.Item groupNode = tree.at("suite", e.groupName);
         GTestOutputView.Item testNode = tree.at("suite", e.groupName, e.testName);
+
+        suiteNode.setTextColor(Color.RED);
+        suiteNode.setIcon(GTestOutputView.SUITE_FAILED_ICON);
+        groupNode.setTextColor(Color.RED);
+        groupNode.setIcon(GTestOutputView.GROUP_FAILED_ICON);
         testNode.setTextColor(Color.RED);
+        testNode.setIcon(GTestOutputView.TEST_FAILED_ICON);
+
         testNode.createOutputLine(e.outputLine);
     }
 

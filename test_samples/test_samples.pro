@@ -10,6 +10,7 @@ include(deployment.pri)
 qtcAddDeployment()
 
 HEADERS += \
-    gtest/gtest.h
+    gtest/gtest.h \
+    prime_tables.h
 
 unix:!mac: LIBS += -lpthread
