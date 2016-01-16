@@ -50,7 +50,6 @@ public class GTestOutputView extends JScrollPane {
 
     public class Item {
         //todo naming
-        //todo return void from all methods
 
         protected final StyledTreeNode node;
 
@@ -74,22 +73,19 @@ public class GTestOutputView extends JScrollPane {
             return new Item(newLeaf);
         }
 
-        public Item setDisplayName(String displayName) {
+        public void setDisplayName(String displayName) {
             node.setDisplayName(displayName);
             model.nodeChanged(node);
-            return this;
         }
 
-        public Item setIcon(Icon icon) {
+        public void setIcon(Icon icon) {
             node.setIcon(icon);
             model.nodeChanged(node);
-            return this;
         }
 
-        public Item setTextColor(Color color) {
+        public void setTextColor(Color color) {
             node.setTextColor(color);
             model.nodeChanged(node);
-            return this;
         }
     }
 

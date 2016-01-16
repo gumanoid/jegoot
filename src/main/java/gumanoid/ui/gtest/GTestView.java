@@ -57,20 +57,7 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         cancelTests.setEnabled(false);
         rerunFailedTests.setEnabled(false);
 
-        runTests.addActionListener(e -> start(new GTestRunner(testExePath, createHandler()) {
-            @Override
-            protected void onProgress(SuiteProgress progress) {
-                //todo two-section progress bar, to display failed/passed ratio
-
-                testsProgress.setMaximum(progress.totalTests);
-                testsProgress.setValue(progress.finishedTests);
-            }
-
-            @Override
-            protected void onFinish(SuiteResult result) {
-                finish(result.failedTests);
-            }
-        }));
+        runTests.addActionListener(e -> start(new Runner(testExePath)));
 
         cancelTests.addActionListener(e -> {
             if (currentTask != null) {
@@ -79,21 +66,7 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
             }
         });
 
-        rerunFailedTests.addActionListener(e -> start(new GTestRunner(testExePath, failedTests, createHandler()) {
-            @Override
-            protected void onProgress(SuiteProgress progress) {
-                //todo two-section progress bar, to display failed/passed ratio
-
-                testsProgress.setMaximum(progress.totalTests);
-                testsProgress.setValue(progress.finishedTests);
-            }
-
-            @Override
-            protected void onFinish(SuiteResult result) {
-                //todo handle non-zero exitCode, for a case when test process crashed
-                finish(result.failedTests);
-            }
-        }));
+        rerunFailedTests.addActionListener(e -> start(new Runner(testExePath, failedTests)));
 
         SwingUtilities.invokeLater(runTests::doClick);
     }
@@ -110,9 +83,8 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
             @Override
             public void suiteStart(String outputLine, int testCount, int testGroupCount) {
-                testOutputView.atRoot()
-                        .createCollapsible("suite", "Suite")
-                        .setTextColor(Color.YELLOW);
+                GTestOutputView.Item suiteNode = testOutputView.atRoot().createCollapsible("suite", "Suite");
+                suiteNode.setTextColor(Color.YELLOW);
 
                 testOutputView.at("suite").createOutputLine(outputLine);
             }
@@ -125,33 +97,36 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
                     testOutputView.at("suite").setTextColor(Color.GREEN);
                 }
 
-                testOutputView.atRoot()
-                        .createCollapsible("summary", "Summary")
-                        .setTextColor(failsInSuite? Color.RED : Color.GREEN);
+                GTestOutputView.Item summaryNode = testOutputView.atRoot().createCollapsible("summary", "Summary");
+                summaryNode.setTextColor(failsInSuite? Color.RED : Color.GREEN);
             }
 
             @Override
             public void groupStart(String outputLine, String groupName, int testsInGroup) {
                 failsInGroup = false;
-                testOutputView.at("suite").createCollapsible(groupName, groupName + " with " + testsInGroup + " test(s)");
-                testOutputView.at("suite", groupName).createOutputLine(outputLine);
+                GTestOutputView.Item groupNode = testOutputView.at("suite")
+                        .createCollapsible(groupName, groupName + " with " + testsInGroup + " test(s)");
+                groupNode.createOutputLine(outputLine);
             }
 
             @Override
             public void groupEnd(String outputLine, String groupName, int testsInGroup) {
+                GTestOutputView.Item groupNode = testOutputView.at("suite", groupName);
+
                 if (!failsInGroup) {
-                    testOutputView.at("suite", groupName).setTextColor(Color.GREEN);
+                    groupNode.setTextColor(Color.GREEN);
                 }
 
                 if (outputLine != null) { //todo Optional instead of nullable, for consistency?
-                    testOutputView.at("suite", groupName).createOutputLine(outputLine);
+                    groupNode.createOutputLine(outputLine);
                 }
             }
 
             @Override
             public void testStart(String outputLine, String groupName, String testName) {
-                testOutputView.at("suite", groupName).createCollapsible(testName, testName);
-                testOutputView.at("suite", groupName, testName).createOutputLine(outputLine);
+                GTestOutputView.Item groupNode = testOutputView.at("suite", groupName);
+                GTestOutputView.Item testNode = groupNode.createCollapsible(testName, testName);
+                testNode.createOutputLine(outputLine);
             }
 
             @Override
@@ -166,8 +141,9 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
             @Override
             public void testPassed(String outputLine, String groupName, String testName) {
-                testOutputView.at("suite", groupName, testName).setTextColor(Color.GREEN);
-                testOutputView.at("suite", groupName, testName).createOutputLine(outputLine);
+                GTestOutputView.Item testNode = testOutputView.at("suite", groupName, testName);
+                testNode.setTextColor(Color.GREEN);
+                testNode.createOutputLine(outputLine);
             }
 
             @Override
@@ -177,8 +153,9 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
                 testOutputView.at("suite").setTextColor(Color.RED);
                 testOutputView.at("suite", groupName).setTextColor(Color.RED);
-                testOutputView.at("suite", groupName, testName).setTextColor(Color.RED);
-                testOutputView.at("suite", groupName, testName).createOutputLine(outputLine);
+                GTestOutputView.Item testNode = testOutputView.at("suite", groupName, testName);
+                testNode.setTextColor(Color.RED);
+                testNode.createOutputLine(outputLine);
             }
 
             @Override
@@ -212,5 +189,35 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
             this.failedTests = failedTests;
         }
         rerunFailedTests.setEnabled(!this.failedTests.isEmpty());
+    }
+
+    private class Runner extends GTestRunner {
+        public Runner(String testExePath, Collection<String> failedTests) {
+            super(testExePath, failedTests, createHandler());
+        }
+
+        public Runner(String testExePath) {
+            super(testExePath, createHandler());
+        }
+
+        @Override
+        protected void onProgress(SuiteProgress progress) {
+            //todo two-section progress bar, to display failed/passed ratio
+
+            testsProgress.setMaximum(progress.totalTests);
+            testsProgress.setValue(progress.finishedTests);
+        }
+
+        @Override
+        protected void onFinish(SuiteResult result) {
+            finish(result.failedTests);
+
+            GTestOutputView.Item exitCodeNode = testOutputView.atRoot()
+                    .createOutputLine("Test finished with exit code " + result.exitCode);
+
+            if (result.exitCode != 0) {
+                exitCodeNode.setTextColor(Color.RED);
+            }
+        }
     }
 }
