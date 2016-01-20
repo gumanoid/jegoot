@@ -43,12 +43,20 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     public void processFinished(int exitCode) {
+        stopAnimation();
+
         GTestOutputView.Item exitCodeNode = tree.atRoot()
                 .createOutputLine("Test finished with exit code " + exitCode);
 
         if (exitCode != 0) {
             exitCodeNode.setTextColor(Color.RED);
         }
+    }
+
+    private void stopAnimation() {
+        tree.getCurrentSuiteNodeIcon().stopAnimation();
+        tree.getCurrentGroupNodeIcon().stopAnimation();
+        tree.getCurrentTestNodeIcon().stopAnimation();
     }
 
     public void accept(GTestOutputEvent e) {
@@ -65,7 +73,8 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
 
     private void suiteStart(SuiteStart e) {
         GTestOutputView.Item suiteNode = tree.atRoot().createCollapsible("suite", "Suite");
-        suiteNode.setTextColor(Color.YELLOW);
+
+        tree.getCurrentSuiteNodeIcon().animate(suiteNode, GTestOutputView.GRAY_SPINNER);
 
         tree.at("suite").createOutputLine(e.outputLine);
     }
@@ -75,7 +84,11 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
 
         suiteNode.createOutputLine(e.outputLine);
 
-        if (!failsInSuite) {
+        tree.getCurrentSuiteNodeIcon().stopAnimation();
+        if (failsInSuite) {
+//            suiteNode.setTextColor(Color.RED);
+            suiteNode.setIcon(GTestOutputView.SUITE_FAILED_ICON);
+        } else {
             suiteNode.setTextColor(Color.GREEN);
             suiteNode.setIcon(GTestOutputView.SUITE_PASSED_ICON);
         }
@@ -86,15 +99,23 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
 
     private void groupStart(GroupStart e) {
         failsInGroup = false;
+
         GTestOutputView.Item groupNode = tree.at("suite")
                 .createCollapsible(e.groupName, e.groupName + " with " + e.testsInGroup + " test(s)");
         groupNode.createOutputLine(e.outputLine);
+
+        groupNode.setTextColor(Color.BLUE);
+        tree.getCurrentGroupNodeIcon().animate(groupNode, GTestOutputView.GRAY_SPINNER);
     }
 
     private void groupEnd(GroupEnd e) {
         GTestOutputView.Item groupNode = tree.at("suite", e.groupName);
 
-        if (!failsInGroup) {
+        tree.getCurrentGroupNodeIcon().stopAnimation();
+        if (failsInGroup) {
+//            groupNode.setTextColor(Color.RED);
+            groupNode.setIcon(GTestOutputView.GROUP_FAILED_ICON);
+        } else {
             groupNode.setTextColor(Color.GREEN);
             groupNode.setIcon(GTestOutputView.GROUP_PASSED_ICON);
         }
@@ -108,6 +129,9 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         GTestOutputView.Item groupNode = tree.at("suite", e.groupName);
         GTestOutputView.Item testNode = groupNode.createCollapsible(e.testName, e.testName);
         testNode.createOutputLine(e.outputLine);
+
+        testNode.setTextColor(Color.BLUE);
+        tree.getCurrentTestNodeIcon().animate(testNode, GTestOutputView.GRAY_SPINNER);
     }
 
     private void testOutput(TestOutput e) {
@@ -122,6 +146,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     private void testPassed(TestPassed e) {
         GTestOutputView.Item testNode = tree.at("suite", e.groupName, e.testName);
         testNode.setTextColor(Color.GREEN);
+        tree.getCurrentTestNodeIcon().stopAnimation();
         testNode.setIcon(GTestOutputView.TEST_PASSED_ICON);
         testNode.createOutputLine(e.outputLine);
     }
@@ -135,10 +160,11 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         GTestOutputView.Item testNode = tree.at("suite", e.groupName, e.testName);
 
         suiteNode.setTextColor(Color.RED);
-        suiteNode.setIcon(GTestOutputView.SUITE_FAILED_ICON);
+        tree.getCurrentSuiteNodeIcon().animate(suiteNode, GTestOutputView.RED_SPINNER);
         groupNode.setTextColor(Color.RED);
-        groupNode.setIcon(GTestOutputView.GROUP_FAILED_ICON);
+        tree.getCurrentGroupNodeIcon().animate(groupNode, GTestOutputView.RED_SPINNER);
         testNode.setTextColor(Color.RED);
+        tree.getCurrentTestNodeIcon().stopAnimation();
         testNode.setIcon(GTestOutputView.TEST_FAILED_ICON);
 
         testNode.createOutputLine(e.outputLine);

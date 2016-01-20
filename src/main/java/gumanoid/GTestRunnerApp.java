@@ -21,7 +21,7 @@ import java.nio.file.Paths;
 //done Parser tests: re-check binary output; test that 'env set up / tear down' lines are passed to handler
 //done UI polishing: status icons
 //done UI polishing: expanded/collapsed icons
-//todo UI polishing: icons animation
+//done UI polishing: icons animation
 //done UI polishing: colors
 //todo UI polishing: two-section progress bar, to show failed/passed ratio
 //todo UI polishing: breadcrumbs
@@ -34,6 +34,7 @@ import java.nio.file.Paths;
 //done Check Linux platform
 //todo TEST, TEST_F, TEST_P?
 //todo Check Mac platform
+//todo Cancel running test on window closing
 
 /**
  * Created by Gumanoid on 05.01.2016.

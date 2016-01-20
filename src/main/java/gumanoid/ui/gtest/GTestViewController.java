@@ -21,7 +21,7 @@ import java.util.LinkedList;
  * Created by Gumanoid on 18.01.2016.
  */
 public class GTestViewController {
-    //todo this class is too big, decompose
+    //todo this class is too big, decompose?
 
     private static class TestId {
         public final String group;
