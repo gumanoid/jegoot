@@ -1,4 +1,4 @@
-package gumanoid.ui.gtest.output;
+package gumanoid.ui.tree;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -7,7 +7,7 @@ import java.awt.*;
 /**
  * Created by Gumanoid on 13.01.2016.
  */
-class StyledTreeNode extends DefaultMutableTreeNode {
+public class StyledTreeNode extends DefaultMutableTreeNode {
     private Icon icon;
     private Color textColor;
     private String displayName;

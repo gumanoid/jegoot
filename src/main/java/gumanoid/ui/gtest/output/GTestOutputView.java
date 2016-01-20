@@ -2,6 +2,8 @@ package gumanoid.ui.gtest.output;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import gumanoid.ui.tree.StyledTreeNode;
+import gumanoid.ui.tree.StyledTreeNodeRenderer;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeModel;
@@ -40,12 +42,20 @@ public class GTestOutputView extends JScrollPane {
         tree.putClientProperty("JTree.lineStyle", "None");
         tree.setFont(new Font("monospaced", Font.PLAIN, 12));
         tree.setCellRenderer(new StyledTreeNodeRenderer());
+
+        tree.addTreeSelectionListener(e -> {
+
+        });
     }
 
     public void clear() {
         root.removeAllChildren();
         childrenIndex(root).clear();
         model.nodeStructureChanged(root);
+    }
+
+    public void setHighlighted(Item item, boolean isHighlighted) {
+
     }
 
     public class Item {

@@ -1,6 +1,7 @@
 package gumanoid;
 
 import gumanoid.ui.gtest.GTestView;
+import gumanoid.ui.gtest.GTestViewController;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -20,8 +21,10 @@ import java.nio.file.Paths;
 //done Parser tests: re-check binary output; test that 'env set up / tear down' lines are passed to handler
 //todo UI polishing: status icons
 //todo UI polishing: expanded/collapsed icons
+//todo UI polishing: icons animation
 //done UI polishing: colors
 //todo UI polishing: two-section progress bar, to show failed/passed ratio
+//todo UI polishing: breadcrumbs
 //todo Passing in test flags
 //todo Query test lists before execution?
 //done Make use of FEST for UI testing
@@ -45,11 +48,16 @@ public class GTestRunnerApp {
             if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                 String testExePath = fileChooser.getSelectedFile().toString();
 
+                GTestView testView = new GTestView(testExePath);
+                GTestViewController controller = new GTestViewController(testView, testExePath);
+
                 JFrame mainWindow = new JFrame("Title");
                 mainWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-                mainWindow.getContentPane().add(new GTestView(testExePath), BorderLayout.CENTER);
+                mainWindow.getContentPane().add(testView, BorderLayout.CENTER);
                 mainWindow.pack();
                 mainWindow.setVisible(true);
+
+                controller.runAllTests();
             }
         });
     }

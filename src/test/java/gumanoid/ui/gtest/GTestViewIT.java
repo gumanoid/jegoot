@@ -6,6 +6,7 @@ import org.fest.swing.fixture.JTreeFixture;
 import org.testng.annotations.*;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.File;
 import java.nio.file.Paths;
 
@@ -197,8 +198,11 @@ public class GTestViewIT {
 
     @Test(dataProvider = "testSamplesOutput")
     void checkTestSamplesOutput(String testExeName, String[] expectedOutput) throws Exception {
-        ui.getContentPane().add(testView = new GTestView(new File(testSamplesDir, testExeName).getAbsolutePath()));
+        String testExePath = new File(testSamplesDir, testExeName).getAbsolutePath();
+
+        ui.getContentPane().add(testView = new GTestView(testExePath), BorderLayout.CENTER);
         JTreeFixture tree = window.tree(GTestOutputView.TREE_NAME);
+        new GTestViewController(testView, testExePath).runAllTests(); //todo it's UI test, it should press buttons, not call controller methods
 
         sleep(500);
 
