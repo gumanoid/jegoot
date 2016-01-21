@@ -45,7 +45,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     public void processFinished(int exitCode) {
         stopAnimation();
 
-        GTestOutputView.Item exitCodeNode = tree.atRoot()
+        GTestOutputView.Node exitCodeNode = tree.atRoot()
                 .createOutputLine("Test finished with exit code " + exitCode);
 
         if (exitCode != 0) {
@@ -72,7 +72,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     private void suiteStart(SuiteStart e) {
-        GTestOutputView.Item suiteNode = tree.atRoot().createCollapsible("suite", "Suite");
+        GTestOutputView.Node suiteNode = tree.atRoot().createCollapsible("suite", "Suite");
 
         tree.getCurrentSuiteNodeIcon().animate(suiteNode, GTestOutputView.GRAY_SPINNER);
 
@@ -80,7 +80,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     private void suiteEnd(SuiteEnd e) {
-        GTestOutputView.Item suiteNode = tree.at("suite");
+        GTestOutputView.Node suiteNode = tree.at("suite");
 
         suiteNode.createOutputLine(e.outputLine);
 
@@ -93,14 +93,14 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
             suiteNode.setIcon(GTestOutputView.SUITE_PASSED_ICON);
         }
 
-        GTestOutputView.Item summaryNode = tree.atRoot().createCollapsible("summary", "Summary");
+        GTestOutputView.Node summaryNode = tree.atRoot().createCollapsible("summary", "Summary");
         summaryNode.setTextColor(failsInSuite? Color.RED : Color.GREEN);
     }
 
     private void groupStart(GroupStart e) {
         failsInGroup = false;
 
-        GTestOutputView.Item groupNode = tree.at("suite")
+        GTestOutputView.Node groupNode = tree.at("suite")
                 .createCollapsible(e.groupName, e.groupName + " with " + e.testsInGroup + " test(s)");
         groupNode.createOutputLine(e.outputLine);
 
@@ -109,7 +109,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     private void groupEnd(GroupEnd e) {
-        GTestOutputView.Item groupNode = tree.at("suite", e.groupName);
+        GTestOutputView.Node groupNode = tree.at("suite", e.groupName);
 
         tree.getCurrentGroupNodeIcon().stopAnimation();
         if (failsInGroup) {
@@ -126,8 +126,8 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     private void testStart(TestStart e) {
-        GTestOutputView.Item groupNode = tree.at("suite", e.groupName);
-        GTestOutputView.Item testNode = groupNode.createCollapsible(e.testName, e.testName);
+        GTestOutputView.Node groupNode = tree.at("suite", e.groupName);
+        GTestOutputView.Node testNode = groupNode.createCollapsible(e.testName, e.testName);
         testNode.createOutputLine(e.outputLine);
 
         testNode.setTextColor(Color.BLUE);
@@ -144,7 +144,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     private void testPassed(TestPassed e) {
-        GTestOutputView.Item testNode = tree.at("suite", e.groupName, e.testName);
+        GTestOutputView.Node testNode = tree.at("suite", e.groupName, e.testName);
         testNode.setTextColor(Color.GREEN);
         tree.getCurrentTestNodeIcon().stopAnimation();
         testNode.setIcon(GTestOutputView.TEST_PASSED_ICON);
@@ -155,9 +155,9 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         failsInGroup = true;
         failsInSuite = true;
 
-        GTestOutputView.Item suiteNode = tree.at("suite");
-        GTestOutputView.Item groupNode = tree.at("suite", e.groupName);
-        GTestOutputView.Item testNode = tree.at("suite", e.groupName, e.testName);
+        GTestOutputView.Node suiteNode = tree.at("suite");
+        GTestOutputView.Node groupNode = tree.at("suite", e.groupName);
+        GTestOutputView.Node testNode = tree.at("suite", e.groupName, e.testName);
 
         suiteNode.setTextColor(Color.RED);
         tree.getCurrentSuiteNodeIcon().animate(suiteNode, GTestOutputView.RED_SPINNER);

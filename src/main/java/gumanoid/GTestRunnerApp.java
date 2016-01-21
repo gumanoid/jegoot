@@ -29,12 +29,13 @@ import java.nio.file.Paths;
 //todo Query test lists before execution?
 //done Make use of FEST for UI testing
 //todo Tests summary
-//todo Invariant: "Kill process".enabled == process.isRunning
+//done Invariant: "Kill process".enabled == process.isRunning
 //done Re-run only failed tests
 //done Check Linux platform
 //todo TEST, TEST_F, TEST_P?
 //todo Check Mac platform
 //todo Cancel running test on window closing
+//todo Make use of RxSwing (see examples: https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples)
 
 /**
  * Created by Gumanoid on 05.01.2016.
@@ -44,7 +45,7 @@ public class GTestRunnerApp {
         SwingUtilities.invokeLater(() -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setCurrentDirectory(new File(Paths.get("").toAbsolutePath().toFile(), "test_samples"));
-            fileChooser.setFileFilter(new FileNameExtensionFilter("Executable files", "exe")); //todo platform-specific extension
+//            fileChooser.setFileFilter(new FileNameExtensionFilter("Executable files", "exe")); //todo platform-specific extension
 
             if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                 String testExePath = fileChooser.getSelectedFile().toString();

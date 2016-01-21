@@ -22,6 +22,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * Created by Gumanoid on 09.01.2016.
  */
 public class GTestOutputView extends JScrollPane {
+    //todo extract model logic, to simplify breadcrumbs
     //todo breadcrumbs
     //todo highlight background of children of selected branch
     //to simplify figuring out when test output is finished
@@ -54,9 +55,9 @@ public class GTestOutputView extends JScrollPane {
     private final DefaultTreeModel model;
     private final JTree tree;
 
-    private Animation<Item, Icon> currentSuiteNodeIcon = Animation.create(Item::setIcon);
-    private Animation<Item, Icon> currentGroupNodeIcon = Animation.create(Item::setIcon);
-    private Animation<Item, Icon> currentTestNodeIcon = Animation.create(Item::setIcon);
+    private Animation<Node, Icon> currentSuiteNodeIcon = Animation.create(Node::setIcon);
+    private Animation<Node, Icon> currentGroupNodeIcon = Animation.create(Node::setIcon);
+    private Animation<Node, Icon> currentTestNodeIcon = Animation.create(Node::setIcon);
 
     public GTestOutputView() {
         super(new JTree(new StyledTreeNode("")));
@@ -75,7 +76,7 @@ public class GTestOutputView extends JScrollPane {
         tree.setCellRenderer(new StyledTreeNodeRenderer());
 
         tree.addTreeSelectionListener(e -> {
-            //todo use it for breadcrums
+            //todo use it for breadcrums & highlighting
         });
     }
 
@@ -85,39 +86,39 @@ public class GTestOutputView extends JScrollPane {
         model.nodeStructureChanged(root);
     }
 
-    public Animation<Item, Icon> getCurrentSuiteNodeIcon() {
+    public Animation<Node, Icon> getCurrentSuiteNodeIcon() {
         return currentSuiteNodeIcon;
     }
 
-    public Animation<Item, Icon> getCurrentGroupNodeIcon() {
+    public Animation<Node, Icon> getCurrentGroupNodeIcon() {
         return currentGroupNodeIcon;
     }
 
-    public Animation<Item, Icon> getCurrentTestNodeIcon() {
+    public Animation<Node, Icon> getCurrentTestNodeIcon() {
         return currentTestNodeIcon;
     }
 
-    public class Item {
+    public class Node {
         protected final StyledTreeNode node;
 
-        public Item(StyledTreeNode node) {
+        public Node(StyledTreeNode node) {
             this.node = node;
         }
 
-        public Item createCollapsible(String pathKey, String displayName) {
+        public Node createCollapsible(String pathKey, String displayName) {
             StyledTreeNode newBranch = new StyledTreeNode(displayName);
             newBranch.setUserObject(new HashMap<String, StyledTreeNode>());
             childrenIndex(node).put(pathKey, newBranch);
             addChildNode(node, newBranch);
 
-            return new Item(newBranch);
+            return new Node(newBranch);
         }
 
-        public Item createOutputLine(String outputLine) {
+        public Node createOutputLine(String outputLine) {
             StyledTreeNode newLeaf = new StyledTreeNode(outputLine);
             addChildNode(node, newLeaf);
 
-            return new Item(newLeaf);
+            return new Node(newLeaf);
         }
 
         public void setDisplayName(String displayName) {
@@ -140,17 +141,17 @@ public class GTestOutputView extends JScrollPane {
         }
     }
 
-    public Item atRoot() {
-        return new Item(root);
+    public Node atRoot() {
+        return new Node(root);
     }
 
-    public Item at(String... pathKeys) {
+    public Node at(String... pathKeys) {
         StyledTreeNode node = root;
         for (String pathKey : pathKeys) {
             node = childrenIndex(node).get(pathKey);
             Preconditions.checkState(node != null);
         }
-        return new Item(node);
+        return new Node(node);
     }
 
     private Map<String, StyledTreeNode> childrenIndex(StyledTreeNode node) {
