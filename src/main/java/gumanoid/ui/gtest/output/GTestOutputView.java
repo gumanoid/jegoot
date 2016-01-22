@@ -10,14 +10,14 @@ import rx.Observable;
 import rx.schedulers.SwingScheduler;
 
 import javax.swing.*;
+import javax.swing.event.TreeModelEvent;
+import javax.swing.event.TreeModelListener;
 import javax.swing.tree.DefaultTreeModel;
-import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -25,13 +25,13 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * Created by Gumanoid on 09.01.2016.
  */
 public class GTestOutputView extends JPanel {
-    //todo extract model logic, to simplify breadcrumbs
-    //todo breadcrumbs
-    //todo highlight background of children of selected branch
-    //to simplify figuring out when test output is finished
+    //todo decompose this class, it is starting to smell like GodObject
 
     @VisibleForTesting
     public static final String TREE_NAME = "GTest_output_tree";
+
+    @VisibleForTesting
+    public static final String CRUMBS_NAME = "GTest_output_tree_crumbs";
 
     static final Icon TEST_PASSED_ICON = Icons.load("test_passed.png");
     static final Icon TEST_FAILED_ICON = Icons.load("test_failed.png");
@@ -63,12 +63,6 @@ public class GTestOutputView extends JPanel {
     private Animation<Node, Icon> currentTestNodeIcon = Animation.create(Node::setIcon);
 
     public GTestOutputView() {
-        //        super(new JTree(new StyledTreeNode("")));
-
-//        tree = JTree.class.cast(getViewport().getView());
-//        model = DefaultTreeModel.class.cast(tree.getModel());
-//        root = StyledTreeNode.class.cast(model.getRoot());
-
         root = new StyledTreeNode("");
         root.setUserObject(new HashMap<String, StyledTreeNode>());
 
@@ -83,31 +77,89 @@ public class GTestOutputView extends JPanel {
         tree.setFont(new Font("monospaced", Font.PLAIN, 12));
         tree.setCellRenderer(new StyledTreeNodeRenderer());
 
-        //todo full path with icons etc
-        JLabel navigationPath = new JLabel();
+        //todo extract crumbs-related code
+        //todo left align instead of centering
+        //todo scroll on press on crumb
+        DefaultListModel<Object> breadCrumbsModel = new DefaultListModel<>();
+        JList<Object> breadCrumbs = new JList<>(breadCrumbsModel);
+        breadCrumbs.setName(CRUMBS_NAME);
+        breadCrumbs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        breadCrumbs.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        breadCrumbs.setVisibleRowCount(1);
+        breadCrumbs.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                StyledTreeNode node = StyledTreeNode.class.cast(value);
+                super.getListCellRendererComponent(list, node, index, isSelected, cellHasFocus);
+
+                setText(node.getDisplayName());
+
+                if (node.getIcon() != null) {
+                    setIcon(node.getIcon());
+                }
+                if (node.getTextColor() != null) {
+                    setForeground(node.getTextColor());
+                }
+
+                return this;
+            }
+        });
+
+        model.addTreeModelListener(new TreeModelListener() {
+            @Override
+            public void treeNodesChanged(TreeModelEvent e) {
+                //todo redraw only if node is actually contained in bread crumbs
+                breadCrumbs.repaint();
+            }
+
+            @Override
+            public void treeNodesInserted(TreeModelEvent e) {
+
+            }
+
+            @Override
+            public void treeNodesRemoved(TreeModelEvent e) {
+
+            }
+
+            @Override
+            public void treeStructureChanged(TreeModelEvent e) {
+
+            }
+        });
 
         JScrollPane treeScroll = new JScrollPane(tree);
         treeScroll.getViewport().addChangeListener(e -> {
             JViewport viewport = JViewport.class.cast(e.getSource());
+
+//            boolean scrolling = treeScroll.getVerticalScrollBar().isVisible();
+//            breadCrumbs.setVisible(scrolling);
+//            if (!scrolling) {
+//                return;
+//            }
+
             Point upperLeft = viewport.getViewPosition();
             upperLeft = viewport.toViewCoordinates(upperLeft);
             TreePath firstVisibleRow = tree.getClosestPathForLocation(upperLeft.x, upperLeft.y);
 
-            StringBuilder navigationText = new StringBuilder();
+            breadCrumbsModel.clear();
             for (TreePath step = firstVisibleRow; step != null; step = step.getParentPath()) {
-                navigationText.insert(0, " / ").insert(0, step.getLastPathComponent().toString());
+                if (step.getParentPath() == null) {
+                    continue; //skip invisible root element
+                }
+
+                StyledTreeNode node = StyledTreeNode.class.cast(step.getLastPathComponent());
+                if (node.isLeaf()) {
+                    continue; //skip output lines
+                }
+
+                breadCrumbsModel.add(0, node);
             }
-            navigationPath.setText(navigationText.toString());
         });
 
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
-        add(navigationPath);
-//        add(breadCrumbs);
+        add(breadCrumbs);
         add(treeScroll);
-
-        tree.addTreeSelectionListener(e -> {
-            //todo use it for breadcrums & highlighting
-        });
     }
 
     public void clear() {
@@ -164,10 +216,6 @@ public class GTestOutputView extends JPanel {
         public void setTextColor(Color color) {
             node.setTextColor(color);
             model.nodeChanged(node);
-        }
-
-        public void setHighlighted(boolean isHighlighted) {
-            //todo implement
         }
     }
 
