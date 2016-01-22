@@ -11,17 +11,20 @@ import rx.schedulers.SwingScheduler;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Created by Gumanoid on 09.01.2016.
  */
-public class GTestOutputView extends JScrollPane {
+public class GTestOutputView extends JPanel {
     //todo extract model logic, to simplify breadcrumbs
     //todo breadcrumbs
     //todo highlight background of children of selected branch
@@ -60,20 +63,47 @@ public class GTestOutputView extends JScrollPane {
     private Animation<Node, Icon> currentTestNodeIcon = Animation.create(Node::setIcon);
 
     public GTestOutputView() {
-        super(new JTree(new StyledTreeNode("")));
+        //        super(new JTree(new StyledTreeNode("")));
 
-        tree = JTree.class.cast(getViewport().getView());
-        model = DefaultTreeModel.class.cast(tree.getModel());
-        root = StyledTreeNode.class.cast(model.getRoot());
+//        tree = JTree.class.cast(getViewport().getView());
+//        model = DefaultTreeModel.class.cast(tree.getModel());
+//        root = StyledTreeNode.class.cast(model.getRoot());
 
+        root = new StyledTreeNode("");
         root.setUserObject(new HashMap<String, StyledTreeNode>());
 
+        model = new DefaultTreeModel(root);
+
+        tree = new JTree(model);
         tree.setName(TREE_NAME);
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);
+        tree.getSelectionModel().setSelectionMode(TreeSelectionModel.CONTIGUOUS_TREE_SELECTION);
         tree.putClientProperty("JTree.lineStyle", "None");
         tree.setFont(new Font("monospaced", Font.PLAIN, 12));
         tree.setCellRenderer(new StyledTreeNodeRenderer());
+
+        //todo full path with icons etc
+        JLabel navigationPath = new JLabel();
+
+        JScrollPane treeScroll = new JScrollPane(tree);
+        treeScroll.getViewport().addChangeListener(e -> {
+            JViewport viewport = JViewport.class.cast(e.getSource());
+            Point upperLeft = viewport.getViewPosition();
+            upperLeft = viewport.toViewCoordinates(upperLeft);
+            TreePath firstVisibleRow = tree.getClosestPathForLocation(upperLeft.x, upperLeft.y);
+
+            StringBuilder navigationText = new StringBuilder();
+            for (TreePath step = firstVisibleRow; step != null; step = step.getParentPath()) {
+                navigationText.insert(0, " / ").insert(0, step.getLastPathComponent().toString());
+            }
+            navigationPath.setText(navigationText.toString());
+        });
+
+        setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
+        add(navigationPath);
+//        add(breadCrumbs);
+        add(treeScroll);
 
         tree.addTreeSelectionListener(e -> {
             //todo use it for breadcrums & highlighting
