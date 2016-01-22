@@ -21,8 +21,6 @@ import java.util.LinkedList;
  * Created by Gumanoid on 18.01.2016.
  */
 public class GTestViewController {
-    //todo this class is too big, decompose?
-
     private static class TestId {
         public final String group;
         public final String name;
@@ -45,12 +43,11 @@ public class GTestViewController {
     private final ProcessLaunchesModel testProcess = new ProcessLaunchesModel();
     private final String testExePath;
 
-    private final EventDispatcher<GTestOutputEvent> eventDispatcher;
-
     private final Collection<TestId> failedTests = new LinkedList<>();
     private final Collection<TestId> newFailedTests = new LinkedList<>();
 
-    //todo it's ugly to have BehaviorSubjects just to shift execution to another thread
+    //todo such bindings are more suitable for VM in MVVM pattern than for controller
+    //https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples has some interesting ideas
     private final BehaviorSubject<Void> runTestsTrigger = BehaviorSubject.create();
     private final BehaviorSubject<Collection<TestId>> rerunTestsTrigger = BehaviorSubject.create();
 
@@ -58,7 +55,8 @@ public class GTestViewController {
         this.view = view;
         this.testExePath = testExePath;
         this.outputController = new GTestOutputViewController(view.getTestOutputView());
-        this.eventDispatcher = new EventDispatcher<>(e -> {});
+
+        EventDispatcher<GTestOutputEvent> eventDispatcher = new EventDispatcher<>(e -> {});
 
         testProcess.onStarted()
                 .subscribe(process -> {

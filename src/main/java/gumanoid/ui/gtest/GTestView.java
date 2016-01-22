@@ -17,6 +17,8 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
     @VisibleForTesting
     static final String RERUN_BUTTON_NAME = "GTest_view_rerun";
 
+    static final Dimension SPACER_SIZE = new Dimension(10, 0);
+
     private final JButton runTests = new JButton("Run");
     private final JButton cancelTests = new JButton("Cancel");
     private final JButton rerunFailedTests = new JButton("Re-run failed");
@@ -28,15 +30,15 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
     public GTestView() {
         JPanel controls = new JPanel();
         controls.setLayout(new BoxLayout(controls, BoxLayout.LINE_AXIS));
-        controls.add(Box.createRigidArea(new Dimension(10, 0)));
+        controls.add(Box.createRigidArea(SPACER_SIZE));
         controls.add(runTests);
-        controls.add(Box.createRigidArea(new Dimension(10, 0)));
+        controls.add(Box.createRigidArea(SPACER_SIZE));
         controls.add(rerunFailedTests);
-        controls.add(Box.createRigidArea(new Dimension(10, 0)));
+        controls.add(Box.createRigidArea(SPACER_SIZE));
         controls.add(cancelTests);
-        controls.add(Box.createRigidArea(new Dimension(10, 0)));
+        controls.add(Box.createRigidArea(SPACER_SIZE));
         controls.add(testsProgress);
-        controls.add(Box.createRigidArea(new Dimension(10, 0)));
+        controls.add(Box.createRigidArea(SPACER_SIZE));
 
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         add(controls);

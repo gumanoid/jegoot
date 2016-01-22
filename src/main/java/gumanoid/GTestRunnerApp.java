@@ -2,6 +2,7 @@ package gumanoid;
 
 import gumanoid.ui.gtest.GTestView;
 import gumanoid.ui.gtest.GTestViewController;
+import sun.awt.OSInfo;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -43,9 +44,17 @@ import java.nio.file.Paths;
 public class GTestRunnerApp {
     public static void main(String[] args) throws Exception {
         SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setCurrentDirectory(new File(Paths.get("").toAbsolutePath().toFile(), "test_samples"));
-//            fileChooser.setFileFilter(new FileNameExtensionFilter("Executable files", "exe")); //todo platform-specific extension
+            if (OSInfo.getOSType() == OSInfo.OSType.WINDOWS) {
+                fileChooser.setFileFilter(new FileNameExtensionFilter("Executable files", "exe"));
+            }
 
             if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                 String testExePath = fileChooser.getSelectedFile().toString();
