@@ -24,10 +24,10 @@ import java.nio.file.Paths;
 //done UI polishing: expanded/collapsed icons
 //done UI polishing: icons animation
 //done UI polishing: colors
+//todo Query test lists before execution
 //todo UI polishing: two-section progress bar, to show failed/passed ratio
-//todo UI polishing: breadcrumbs
+//done UI polishing: breadcrumbs
 //todo Passing in test flags
-//todo Query test lists before execution?
 //done Make use of FEST for UI testing
 //todo Tests summary
 //done Invariant: "Kill process".enabled == process.isRunning

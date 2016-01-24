@@ -129,7 +129,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
 
         GTestOutputRow row = new GTestOutputRow("Test finished with exit code " + exitCode);
         if (exitCode != 0) {
-            row.setTextColor(Color.RED);
+            row.setTextColor(GTestOutputRowStyle.COLOR_FAILED);
         }
 
         model.addOutput(model.rootNode(), row);
@@ -157,7 +157,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite"));
         model.addOutput(suiteNode, new GTestOutputRow(e.outputLine));
 
-        currentSuiteIndicator.animate(suiteNode, GTestOutputView.GRAY_SPINNER);
+        currentSuiteIndicator.animate(suiteNode, GTestOutputRowStyle.GRAY_SPINNER);
     }
 
     private void suiteEnd(SuiteEnd e) {
@@ -167,16 +167,16 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
 
         currentSuiteIndicator.stopAnimation();
         if (failsInSuite) {
-//            suite.setTextColor(Color.RED);
-            suite.setIcon(GTestOutputView.SUITE_FAILED_ICON);
+//            suite.setTextColor(GTestOutputRowStyle.COLOR_FAILED);
+            suite.setIcon(GTestOutputRowStyle.SUITE_FAILED_ICON);
         } else {
-            suite.setTextColor(Color.GREEN);
-            suite.setIcon(GTestOutputView.SUITE_PASSED_ICON);
+            suite.setTextColor(GTestOutputRowStyle.COLOR_PASSED);
+            suite.setIcon(GTestOutputRowStyle.SUITE_PASSED_ICON);
         }
         model.nodeUpdated(model.suiteNode());
 
         GTestOutputRow summaryNode = new GTestOutputRow("Summary");
-        summaryNode.setTextColor(failsInSuite? Color.RED : Color.GREEN);
+        summaryNode.setTextColor(failsInSuite? GTestOutputRowStyle.COLOR_FAILED : GTestOutputRowStyle.COLOR_PASSED);
         model.addSummary(summaryNode);
     }
 
@@ -186,9 +186,9 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.addGroup(e.groupName, new GTestOutputRow(e.groupName + " with " + e.testsInGroup + " test(s)"));
         model.addOutput(groupNode, new GTestOutputRow(e.outputLine));
 
-        groupNode.getValue().setTextColor(Color.BLUE);
+        groupNode.getValue().setTextColor(GTestOutputRowStyle.COLOR_RUNNING);
         model.nodeUpdated(groupNode);
-        currentGroupIndicator.animate(groupNode, GTestOutputView.GRAY_SPINNER);
+        currentGroupIndicator.animate(groupNode, GTestOutputRowStyle.GRAY_SPINNER);
     }
 
     private void groupEnd(GroupEnd e) {
@@ -198,10 +198,10 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         currentGroupIndicator.stopAnimation();
         if (failsInGroup) {
 //            group.setTextColor(Color.RED);
-            group.setIcon(GTestOutputView.GROUP_FAILED_ICON);
+            group.setIcon(GTestOutputRowStyle.GROUP_FAILED_ICON);
         } else {
-            group.setTextColor(Color.GREEN);
-            group.setIcon(GTestOutputView.GROUP_PASSED_ICON);
+            group.setTextColor(GTestOutputRowStyle.COLOR_PASSED);
+            group.setIcon(GTestOutputRowStyle.GROUP_PASSED_ICON);
         }
 
         if (e.outputLine != null) { //todo Optional instead of nullable, for consistency?
@@ -211,12 +211,12 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
 
     private void testStart(TestStart e) {
         GTestOutputRow test = new GTestOutputRow(e.testName);
-        test.setTextColor(Color.BLUE);
+        test.setTextColor(GTestOutputRowStyle.COLOR_RUNNING);
 
         GTestOutputTreeModel.BranchNode<GTestOutputRow> testNode = model.addTest(e.groupName, e.testName, test);
         model.addOutput(testNode, new GTestOutputRow(e.outputLine));
 
-        currentTestIndicator.animate(testNode, GTestOutputView.GRAY_SPINNER);
+        currentTestIndicator.animate(testNode, GTestOutputRowStyle.GRAY_SPINNER);
     }
 
     private void testOutput(TestOutput e) {
@@ -232,9 +232,9 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     private void testPassed(TestPassed e) {
         GTestOutputTreeModel.BranchNode<GTestOutputRow> testNode = model.testNode(e.groupName, e.testName);
         GTestOutputRow test = testNode.getValue();
-        test.setTextColor(Color.GREEN);
+        test.setTextColor(GTestOutputRowStyle.COLOR_PASSED);
         currentTestIndicator.stopAnimation();
-        test.setIcon(GTestOutputView.TEST_PASSED_ICON);
+        test.setIcon(GTestOutputRowStyle.TEST_PASSED_ICON);
         model.nodeUpdated(testNode);
 
         model.addOutput(testNode, new GTestOutputRow(e.outputLine));
@@ -252,13 +252,13 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         GTestOutputRow group = groupNode.getValue();
         GTestOutputRow test = testNode.getValue();
 
-        suite.setTextColor(Color.RED);
-        currentSuiteIndicator.animate(suiteNode, GTestOutputView.RED_SPINNER);
-        group.setTextColor(Color.RED);
-        currentGroupIndicator.animate(groupNode, GTestOutputView.RED_SPINNER);
-        test.setTextColor(Color.RED);
+        suite.setTextColor(GTestOutputRowStyle.COLOR_FAILED);
+        currentSuiteIndicator.animate(suiteNode, GTestOutputRowStyle.RED_SPINNER);
+        group.setTextColor(GTestOutputRowStyle.COLOR_FAILED);
+        currentGroupIndicator.animate(groupNode, GTestOutputRowStyle.RED_SPINNER);
+        test.setTextColor(GTestOutputRowStyle.COLOR_FAILED);
         currentTestIndicator.stopAnimation();
-        test.setIcon(GTestOutputView.TEST_FAILED_ICON);
+        test.setIcon(GTestOutputRowStyle.TEST_FAILED_ICON);
 
         model.addOutput(testNode, new GTestOutputRow(e.outputLine));
     }

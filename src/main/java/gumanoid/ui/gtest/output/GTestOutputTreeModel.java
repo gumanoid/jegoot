@@ -15,7 +15,7 @@ import java.util.function.BiConsumer;
  *
  * Created by Gumanoid on 24.01.2016.
  */
-public class GTestOutputTreeModel<T> implements TreeModel {
+public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with tests
     public interface Node<T> {
         Node<T> getParent();
         T getValue();

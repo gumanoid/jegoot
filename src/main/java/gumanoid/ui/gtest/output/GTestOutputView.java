@@ -1,17 +1,12 @@
 package gumanoid.ui.gtest.output;
 
 import com.google.common.annotations.VisibleForTesting;
-import gumanoid.ui.Icons;
-import rx.Observable;
-import rx.schedulers.SwingScheduler;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
-
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Created by Gumanoid on 09.01.2016.
@@ -22,27 +17,6 @@ public class GTestOutputView extends JPanel {
 
     @VisibleForTesting
     public static final String CRUMBS_NAME = "GTest_output_tree_crumbs";
-
-    static final Icon TEST_PASSED_ICON = Icons.load("test_passed.png");
-    static final Icon TEST_FAILED_ICON = Icons.load("test_failed.png");
-    static final Icon GROUP_PASSED_ICON = Icons.load("group_passed.png");
-    static final Icon GROUP_FAILED_ICON = Icons.load("group_failed.png");
-    static final Icon SUITE_PASSED_ICON = Icons.load("suite_passed.png");
-    static final Icon SUITE_FAILED_ICON = Icons.load("suite_failed.png");
-
-    static final Observable<Icon> GRAY_SPINNER = Observable.range(1, 8)
-            .map(i -> Icons.load("spinner_gray_" + i + ".png"))
-            .toList()
-            .flatMap(frames -> Observable.interval(125, MILLISECONDS, SwingScheduler.getInstance())
-                    .map(index -> frames.get((int) (index % frames.size())))
-            );
-
-    static final Observable<Icon> RED_SPINNER = Observable.range(1, 8)
-            .map(i -> Icons.load("spinner_red_" + i + ".png"))
-            .toList()
-            .flatMap(frames -> Observable.interval(125, MILLISECONDS, SwingScheduler.getInstance())
-                    .map(index -> frames.get((int) (index % frames.size())))
-            );
 
     private final JTree tree;
     private final JScrollPane treeScroll;
