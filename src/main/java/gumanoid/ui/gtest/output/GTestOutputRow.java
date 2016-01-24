@@ -1,18 +1,17 @@
-package gumanoid.ui.tree;
+package gumanoid.ui.gtest.output;
 
 import javax.swing.*;
-import javax.swing.tree.DefaultMutableTreeNode;
 import java.awt.*;
 
 /**
- * Created by Gumanoid on 13.01.2016.
+ * Created by Gumanoid on 24.01.2016.
  */
-public class StyledTreeNode extends DefaultMutableTreeNode {
+public class GTestOutputRow {
     private Icon icon;
     private Color textColor;
     private String displayName;
 
-    public StyledTreeNode(String displayName) {
+    public GTestOutputRow(String displayName) {
         this.displayName = displayName;
     }
 

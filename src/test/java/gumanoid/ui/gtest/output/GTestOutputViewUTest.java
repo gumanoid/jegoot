@@ -21,10 +21,12 @@ public class GTestOutputViewUTest {
     FrameFixture window;
     JFrame ui;
     GTestOutputView outputView;
+    GTestOutputTreeModel<GTestOutputRow> model = new GTestOutputTreeModel<>(null);
 
     @BeforeClass void initFrameFixture() {
         ui = new JFrame("Title");
         outputView = new GTestOutputView();
+        outputView.getTree().setModel(model);
         ui.getContentPane().add(outputView, BorderLayout.CENTER);
 
         window = new FrameFixture(ui);
@@ -32,7 +34,7 @@ public class GTestOutputViewUTest {
     }
 
     @BeforeMethod void clearOutputView() {
-        outputView.clear();
+        model.clear();
     }
 
     @AfterClass void cleanUpFrameFixture() {
@@ -50,13 +52,13 @@ public class GTestOutputViewUTest {
 
     @Test(dataProvider = "simpleOutputData")
     void singleLeafUnderRoot(String outputLine) throws Exception {
-        outputView.atRoot().createOutputLine(outputLine);
+        model.addOutput(model.rootNode(), new GTestOutputRow(outputLine));
         assertEquals(window.tree(GTestOutputView.TREE_NAME).valueAt(0), outputLine);
     }
 
     @Test(dataProvider = "simpleOutputData")
     void singleBranchUnderRoot(String outputLine) throws Exception {
-        outputView.atRoot().createCollapsible("suite", outputLine);
+        model.addSuite(new GTestOutputRow(outputLine));
         assertEquals(window.tree(GTestOutputView.TREE_NAME).valueAt(0), outputLine);
     }
 }

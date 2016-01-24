@@ -3,7 +3,10 @@ package gumanoid.ui.gtest.output;
 import gumanoid.event.EventDispatcher;
 import gumanoid.event.GTestOutputEvent;
 import gumanoid.event.GTestOutputEvent.*;
+import gumanoid.ui.Animation;
+import rx.functions.Action2;
 
+import javax.swing.*;
 import java.awt.*;
 import java.util.function.Consumer;
 
@@ -11,15 +14,33 @@ import java.util.function.Consumer;
  * Created by Gumanoid on 18.01.2016.
  */
 public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
-    private final GTestOutputView tree;
+    private final GTestOutputView view;
+    private final GTestOutputTreeModel<GTestOutputRow> model;
+
+    private final Animation<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> currentSuiteIndicator;
+    private final Animation<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> currentGroupIndicator;
+    private final Animation<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> currentTestIndicator;
+
     private final EventDispatcher<GTestOutputEvent> eventDispatcher;
 
     private boolean failsInSuite = false;
     private boolean failsInGroup = false;
 
-    public GTestOutputViewController(GTestOutputView tree) {
-        this.tree = tree;
+    public GTestOutputViewController(GTestOutputView view) {
+        this.view = view;
+        this.model = new GTestOutputTreeModel<>(new GTestOutputRow(null));
         this.eventDispatcher = new EventDispatcher<>(this::defaultEventHandler);
+
+        view.getTree().setModel(model);
+
+        Action2<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> updateIcon = (node, icon) -> {
+            node.getValue().setIcon(icon);
+            model.nodeUpdated(node);
+        };
+
+        currentSuiteIndicator = Animation.create(updateIcon);
+        currentGroupIndicator = Animation.create(updateIcon);
+        currentTestIndicator = Animation.create(updateIcon);
 
         eventDispatcher.addHandler(OutputBeforeSuiteStarted.class, this::outputBeforeSuiteStarted);
         eventDispatcher.addHandler(SuiteStart.class, this::suiteStart);
@@ -37,7 +58,7 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     public void processStarted() {
-        tree.clear();
+        model.clear();
         failsInGroup = false;
         failsInSuite = false;
     }
@@ -45,18 +66,18 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     public void processFinished(int exitCode) {
         stopAnimation();
 
-        GTestOutputView.Node exitCodeNode = tree.atRoot()
-                .createOutputLine("Test finished with exit code " + exitCode);
-
+        GTestOutputRow row = new GTestOutputRow("Test finished with exit code " + exitCode);
         if (exitCode != 0) {
-            exitCodeNode.setTextColor(Color.RED);
+            row.setTextColor(Color.RED);
         }
+
+        model.addOutput(model.rootNode(), row);
     }
 
     private void stopAnimation() {
-        tree.getCurrentSuiteNodeIcon().stopAnimation();
-        tree.getCurrentGroupNodeIcon().stopAnimation();
-        tree.getCurrentTestNodeIcon().stopAnimation();
+        currentSuiteIndicator.stopAnimation();
+        currentGroupIndicator.stopAnimation();
+        currentTestIndicator.stopAnimation();
     }
 
     public void accept(GTestOutputEvent e) {
@@ -64,113 +85,124 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     }
 
     private void defaultEventHandler(GTestOutputEvent e) {
-        tree.atRoot().createOutputLine(e.outputLine);
+        model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
     }
 
     private void outputBeforeSuiteStarted(OutputBeforeSuiteStarted e) {
-        tree.atRoot().createOutputLine(e.outputLine);
+        model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
     }
 
     private void suiteStart(SuiteStart e) {
-        GTestOutputView.Node suiteNode = tree.atRoot().createCollapsible("suite", "Suite");
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite"));
+        model.addOutput(suiteNode, new GTestOutputRow(e.outputLine));
 
-        tree.getCurrentSuiteNodeIcon().animate(suiteNode, GTestOutputView.GRAY_SPINNER);
-
-        tree.at("suite").createOutputLine(e.outputLine);
+        currentSuiteIndicator.animate(suiteNode, GTestOutputView.GRAY_SPINNER);
     }
 
     private void suiteEnd(SuiteEnd e) {
-        GTestOutputView.Node suiteNode = tree.at("suite");
+        GTestOutputRow suite = model.suiteNode().getValue();
 
-        suiteNode.createOutputLine(e.outputLine);
+        model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
 
-        tree.getCurrentSuiteNodeIcon().stopAnimation();
+        currentSuiteIndicator.stopAnimation();
         if (failsInSuite) {
-//            suiteNode.setTextColor(Color.RED);
-            suiteNode.setIcon(GTestOutputView.SUITE_FAILED_ICON);
+//            suite.setTextColor(Color.RED);
+            suite.setIcon(GTestOutputView.SUITE_FAILED_ICON);
         } else {
-            suiteNode.setTextColor(Color.GREEN);
-            suiteNode.setIcon(GTestOutputView.SUITE_PASSED_ICON);
+            suite.setTextColor(Color.GREEN);
+            suite.setIcon(GTestOutputView.SUITE_PASSED_ICON);
         }
+        model.nodeUpdated(model.suiteNode());
 
-        GTestOutputView.Node summaryNode = tree.atRoot().createCollapsible("summary", "Summary");
+        GTestOutputRow summaryNode = new GTestOutputRow("Summary");
         summaryNode.setTextColor(failsInSuite? Color.RED : Color.GREEN);
+        model.addSummary(summaryNode);
     }
 
     private void groupStart(GroupStart e) {
         failsInGroup = false;
 
-        GTestOutputView.Node groupNode = tree.at("suite")
-                .createCollapsible(e.groupName, e.groupName + " with " + e.testsInGroup + " test(s)");
-        groupNode.createOutputLine(e.outputLine);
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.addGroup(e.groupName, new GTestOutputRow(e.groupName + " with " + e.testsInGroup + " test(s)"));
+        model.addOutput(groupNode, new GTestOutputRow(e.outputLine));
 
-        groupNode.setTextColor(Color.BLUE);
-        tree.getCurrentGroupNodeIcon().animate(groupNode, GTestOutputView.GRAY_SPINNER);
+        groupNode.getValue().setTextColor(Color.BLUE);
+        model.nodeUpdated(groupNode);
+        currentGroupIndicator.animate(groupNode, GTestOutputView.GRAY_SPINNER);
     }
 
     private void groupEnd(GroupEnd e) {
-        GTestOutputView.Node groupNode = tree.at("suite", e.groupName);
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.groupNode(e.groupName);
+        GTestOutputRow group = groupNode.getValue();
 
-        tree.getCurrentGroupNodeIcon().stopAnimation();
+        currentGroupIndicator.stopAnimation();
         if (failsInGroup) {
-//            groupNode.setTextColor(Color.RED);
-            groupNode.setIcon(GTestOutputView.GROUP_FAILED_ICON);
+//            group.setTextColor(Color.RED);
+            group.setIcon(GTestOutputView.GROUP_FAILED_ICON);
         } else {
-            groupNode.setTextColor(Color.GREEN);
-            groupNode.setIcon(GTestOutputView.GROUP_PASSED_ICON);
+            group.setTextColor(Color.GREEN);
+            group.setIcon(GTestOutputView.GROUP_PASSED_ICON);
         }
 
         if (e.outputLine != null) { //todo Optional instead of nullable, for consistency?
-            groupNode.createOutputLine(e.outputLine);
+            model.addOutput(groupNode, new GTestOutputRow(e.outputLine));
         }
     }
 
     private void testStart(TestStart e) {
-        GTestOutputView.Node groupNode = tree.at("suite", e.groupName);
-        GTestOutputView.Node testNode = groupNode.createCollapsible(e.testName, e.testName);
-        testNode.createOutputLine(e.outputLine);
+        GTestOutputRow test = new GTestOutputRow(e.testName);
+        test.setTextColor(Color.BLUE);
 
-        testNode.setTextColor(Color.BLUE);
-        tree.getCurrentTestNodeIcon().animate(testNode, GTestOutputView.GRAY_SPINNER);
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> testNode = model.addTest(e.groupName, e.testName, test);
+        model.addOutput(testNode, new GTestOutputRow(e.outputLine));
+
+        currentTestIndicator.animate(testNode, GTestOutputView.GRAY_SPINNER);
     }
 
     private void testOutput(TestOutput e) {
-        (
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> parentNode =
                 e.groupName.isPresent() ? e.testName.isPresent()
-                        ? tree.at("suite", e.groupName.get(), e.testName.get())
-                        : tree.at("suite", e.groupName.get())
-                        : tree.at("suite")
-        ).createOutputLine(e.outputLine);
+                        ? model.testNode(e.groupName.get(), e.testName.get())
+                        : model.groupNode(e.groupName.get())
+                        : model.suiteNode();
+
+        model.addOutput(parentNode, new GTestOutputRow(e.outputLine));
     }
 
     private void testPassed(TestPassed e) {
-        GTestOutputView.Node testNode = tree.at("suite", e.groupName, e.testName);
-        testNode.setTextColor(Color.GREEN);
-        tree.getCurrentTestNodeIcon().stopAnimation();
-        testNode.setIcon(GTestOutputView.TEST_PASSED_ICON);
-        testNode.createOutputLine(e.outputLine);
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> testNode = model.testNode(e.groupName, e.testName);
+        GTestOutputRow test = testNode.getValue();
+        test.setTextColor(Color.GREEN);
+        currentTestIndicator.stopAnimation();
+        test.setIcon(GTestOutputView.TEST_PASSED_ICON);
+        model.nodeUpdated(testNode);
+
+        model.addOutput(testNode, new GTestOutputRow(e.outputLine));
     }
 
     private void testFailed(TestFailed e) {
         failsInGroup = true;
         failsInSuite = true;
 
-        GTestOutputView.Node suiteNode = tree.at("suite");
-        GTestOutputView.Node groupNode = tree.at("suite", e.groupName);
-        GTestOutputView.Node testNode = tree.at("suite", e.groupName, e.testName);
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.suiteNode();
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.groupNode(e.groupName);
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> testNode = model.testNode(e.groupName, e.testName);
 
-        suiteNode.setTextColor(Color.RED);
-        tree.getCurrentSuiteNodeIcon().animate(suiteNode, GTestOutputView.RED_SPINNER);
-        groupNode.setTextColor(Color.RED);
-        tree.getCurrentGroupNodeIcon().animate(groupNode, GTestOutputView.RED_SPINNER);
-        testNode.setTextColor(Color.RED);
-        tree.getCurrentTestNodeIcon().stopAnimation();
-        testNode.setIcon(GTestOutputView.TEST_FAILED_ICON);
+        GTestOutputRow suite = suiteNode.getValue();
+        GTestOutputRow group = groupNode.getValue();
+        GTestOutputRow test = testNode.getValue();
 
-        testNode.createOutputLine(e.outputLine);
+        suite.setTextColor(Color.RED);
+        currentSuiteIndicator.animate(suiteNode, GTestOutputView.RED_SPINNER);
+        group.setTextColor(Color.RED);
+        currentGroupIndicator.animate(groupNode, GTestOutputView.RED_SPINNER);
+        test.setTextColor(Color.RED);
+        currentTestIndicator.stopAnimation();
+        test.setIcon(GTestOutputView.TEST_FAILED_ICON);
+
+        model.addOutput(testNode, new GTestOutputRow(e.outputLine));
     }
 
     private void summaryOutput(GTestOutputEvent e) {
-        tree.at("summary").createOutputLine(e.outputLine);
+        model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
     }
 }
