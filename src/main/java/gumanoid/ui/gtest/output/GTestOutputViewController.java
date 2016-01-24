@@ -7,6 +7,9 @@ import gumanoid.ui.Animation;
 import rx.functions.Action2;
 
 import javax.swing.*;
+import javax.swing.event.TreeModelEvent;
+import javax.swing.event.TreeModelListener;
+import javax.swing.tree.TreePath;
 import java.awt.*;
 import java.util.function.Consumer;
 
@@ -31,7 +34,10 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         this.model = new GTestOutputTreeModel<>(new GTestOutputRow(null));
         this.eventDispatcher = new EventDispatcher<>(this::defaultEventHandler);
 
+        DefaultListModel<TreePath> breadCrumbsModel = new DefaultListModel<>();
+
         view.getTree().setModel(model);
+        view.getCrumbs().setModel(breadCrumbsModel);
 
         Action2<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> updateIcon = (node, icon) -> {
             node.getValue().setIcon(icon);
@@ -55,6 +61,61 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         eventDispatcher.addHandler(FailedTestsSummary.class, this::summaryOutput);
         eventDispatcher.addHandler(FailedTestSummary.class, this::summaryOutput);
         eventDispatcher.addHandler(PassedTestsSummary.class, this::summaryOutput);
+
+        model.addTreeModelListener(new TreeModelListener() {
+            @Override
+            public void treeNodesChanged(TreeModelEvent e) {
+                if (breadCrumbsModel.contains(e.getTreePath())) {
+                    view.getCrumbs().repaint();
+                }
+            }
+
+            @Override
+            public void treeNodesInserted(TreeModelEvent e) {
+                TreePath childPath = e.getTreePath().pathByAddingChild(e.getChildren()[0]);
+                view.getTree().scrollPathToVisible(childPath);
+            }
+
+            @Override
+            public void treeNodesRemoved(TreeModelEvent e) {}
+
+            @Override
+            public void treeStructureChanged(TreeModelEvent e) {}
+        });
+
+        view.getTreeScroll().getViewport().addChangeListener(e -> {
+            JViewport viewport = JViewport.class.cast(e.getSource());
+
+//            boolean scrolling = treeScroll.getVerticalScrollBar().isVisible();
+//            breadCrumbs.setVisible(scrolling);
+//            if (!scrolling) {
+//                return;
+//            }
+
+            Point upperLeft = viewport.getViewPosition();
+            upperLeft = viewport.toViewCoordinates(upperLeft);
+            TreePath firstVisibleRow = view.getTree().getClosestPathForLocation(upperLeft.x, upperLeft.y);
+
+            breadCrumbsModel.clear();
+            for (TreePath step = firstVisibleRow; step != null; step = step.getParentPath()) {
+                if (step.getParentPath() == null) {
+                    continue; //skip invisible root element
+                }
+
+                GTestOutputTreeModel.Node node = GTestOutputTreeModel.Node.class.cast(step.getLastPathComponent());
+                if (node.isLeaf()) {
+                    continue; //skip output lines
+                }
+
+                breadCrumbsModel.add(0, step);
+            }
+        });
+
+        view.getCrumbs().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                view.getTree().scrollPathToVisible(view.getCrumbs().getSelectedValue());
+            }
+        });
     }
 
     public void processStarted() {

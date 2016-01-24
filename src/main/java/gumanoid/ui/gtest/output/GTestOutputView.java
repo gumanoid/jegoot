@@ -6,6 +6,7 @@ import rx.Observable;
 import rx.schedulers.SwingScheduler;
 
 import javax.swing.*;
+import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
@@ -16,8 +17,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * Created by Gumanoid on 09.01.2016.
  */
 public class GTestOutputView extends JPanel {
-    //todo decompose this class, it is starting to smell like GodObject
-
     @VisibleForTesting
     public static final String TREE_NAME = "GTest_output_tree";
 
@@ -46,6 +45,8 @@ public class GTestOutputView extends JPanel {
             );
 
     private final JTree tree;
+    private final JScrollPane treeScroll;
+    private final JList<TreePath> crumbs;
 
     public GTestOutputView() {
         tree = new JTree();
@@ -55,21 +56,46 @@ public class GTestOutputView extends JPanel {
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.CONTIGUOUS_TREE_SELECTION);
         tree.putClientProperty("JTree.lineStyle", "None");
         tree.setFont(new Font("monospaced", Font.PLAIN, 12));
-        tree.setCellRenderer(new GTestOutputRowRenderer());
+        tree.setCellRenderer(new DefaultTreeCellRenderer() {
+            {
+                setLeafIcon(null);
+                setClosedIcon(null);
+                setOpenIcon(null);
+            }
 
-        //TODO extract crumbs-related code
-        //todo left align instead of centering
-        //todo scroll on press on crumb
-        DefaultListModel<Object> breadCrumbsModel = new DefaultListModel<>();
-        JList<Object> breadCrumbs = new JList<>(breadCrumbsModel);
-        breadCrumbs.setName(CRUMBS_NAME);
-        breadCrumbs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        breadCrumbs.setLayoutOrientation(JList.HORIZONTAL_WRAP);
-        breadCrumbs.setVisibleRowCount(1);
-        breadCrumbs.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel, boolean expanded, boolean leaf, int row, boolean hasFocus) {
+                GTestOutputTreeModel.Node<GTestOutputRow> node = GTestOutputTreeModel.node(value);
+                GTestOutputRow style = node.getValue();
+
+                //todo sometimes text is ellipsed, why?
+                super.getTreeCellRendererComponent(tree, style.getDisplayName(), sel, expanded, leaf, row, hasFocus);
+
+                setText(style.getDisplayName());
+
+                if (style.getIcon() != null) {
+                    setIcon(style.getIcon());
+                }
+                if (style.getTextColor() != null) {
+                    setForeground(style.getTextColor());
+                }
+
+                return this;
+            }
+        });
+
+        //todo provide size hint so that crumb is fit to it contents
+        //todo add spacers between items
+        crumbs = new JList<>();
+        crumbs.setName(CRUMBS_NAME);
+        crumbs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        crumbs.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        crumbs.setVisibleRowCount(1);
+        crumbs.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                GTestOutputTreeModel.Node<GTestOutputRow> node = GTestOutputTreeModel.node(value);
+                TreePath path = TreePath.class.cast(value);
+                GTestOutputTreeModel.Node<GTestOutputRow> node = GTestOutputTreeModel.node(path.getLastPathComponent());
                 GTestOutputRow row = node.getValue();
 
                 super.getListCellRendererComponent(list, row.getDisplayName(), index, isSelected, cellHasFocus);
@@ -83,68 +109,28 @@ public class GTestOutputView extends JPanel {
                     setForeground(row.getTextColor());
                 }
 
+                setSize(getPreferredSize());
+
                 return this;
             }
         });
 
-//        model.addTreeModelListener(new TreeModelListener() {
-//            @Override
-//            public void treeNodesChanged(TreeModelEvent e) {
-//                //todo redraw only if node is actually contained in bread crumbs
-//                breadCrumbs.repaint();
-//            }
-//
-//            @Override
-//            public void treeNodesInserted(TreeModelEvent e) {
-//                tree.scrollPathToVisible(e.getPath());
-//            }
-//
-//            @Override
-//            public void treeNodesRemoved(TreeModelEvent e) {
-//
-//            }
-//
-//            @Override
-//            public void treeStructureChanged(TreeModelEvent e) {
-//
-//            }
-//        });
+        treeScroll = new JScrollPane(tree);
 
-        JScrollPane treeScroll = new JScrollPane(tree);
-        treeScroll.getViewport().addChangeListener(e -> {
-            JViewport viewport = JViewport.class.cast(e.getSource());
-
-//            boolean scrolling = treeScroll.getVerticalScrollBar().isVisible();
-//            breadCrumbs.setVisible(scrolling);
-//            if (!scrolling) {
-//                return;
-//            }
-
-            Point upperLeft = viewport.getViewPosition();
-            upperLeft = viewport.toViewCoordinates(upperLeft);
-            TreePath firstVisibleRow = tree.getClosestPathForLocation(upperLeft.x, upperLeft.y);
-
-            breadCrumbsModel.clear();
-            for (TreePath step = firstVisibleRow; step != null; step = step.getParentPath()) {
-                if (step.getParentPath() == null) {
-                    continue; //skip invisible root element
-                }
-
-                GTestOutputTreeModel.Node node = GTestOutputTreeModel.Node.class.cast(step.getLastPathComponent());
-                if (node.isLeaf()) {
-                    continue; //skip output lines
-                }
-
-                breadCrumbsModel.add(0, node);
-            }
-        });
-
-        setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
-        add(breadCrumbs);
-        add(treeScroll);
+        setLayout(new BorderLayout());
+        add(crumbs, BorderLayout.NORTH);
+        add(treeScroll, BorderLayout.CENTER);
     }
 
-    public JTree getTree() {
+    JTree getTree() {
         return tree;
+    }
+
+    JScrollPane getTreeScroll() {
+        return treeScroll;
+    }
+
+    JList<TreePath> getCrumbs() {
+        return crumbs;
     }
 }
