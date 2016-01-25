@@ -11,6 +11,8 @@ import java.io.File;
 import java.nio.file.Paths;
 
 //fixed Elapsed time is different each time GTestRunnerIT starts test samples, fix test
+//fixed Run test_samples; press re-run -> java.lang.ArrayIndexOutOfBoundsException: -1 @ GTestOutputTreeModel$BranchNodeWithQueue.take(GTestOutputTreeModel.java:295)
+//fixme 'Re-run' button sometimes isn't enabled
 
 //done Run external process and display it's output in GUI
 //done Support external process interruption
@@ -24,7 +26,8 @@ import java.nio.file.Paths;
 //done UI polishing: expanded/collapsed icons
 //done UI polishing: icons animation
 //done UI polishing: colors
-//todo Query test lists before execution
+//done Query tests list before execution
+//TODO Cover GTestOutputTreeModel with tests
 //todo UI polishing: two-section progress bar, to show failed/passed ratio
 //done UI polishing: breadcrumbs
 //todo Passing in test flags
@@ -37,6 +40,7 @@ import java.nio.file.Paths;
 //todo Check Mac platform
 //todo Cancel running test on window closing
 //todo Make use of RxSwing (see examples: https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples)
+//todo Tests shuffling (--gtest_shuffle) and repeating (--gtest_repeat=N)
 
 /**
  * Created by Gumanoid on 05.01.2016.

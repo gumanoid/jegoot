@@ -31,16 +31,16 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
 
     private final Map<String, BranchNodeImpl<T>> structureIndex = new HashMap<>();
 
-    private final BranchNodeImpl<T> root;
+    private final BranchNodeWithQueue<T> root;
     private BranchNodeWithQueue<T> suite;
     private BranchNodeImpl<T> summary;
 
     public GTestOutputTreeModel(T rootValue) {
-        root = new BranchNodeImpl<>(null, rootValue);
+        root = new BranchNodeWithQueue<>(null, rootValue);
     }
 
     public void clear() {
-        root.children.clear();
+        root.clear();
         structureIndex.clear();
         suite = null;
         summary = null;
@@ -68,6 +68,14 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
         return structureIndex.get(groupKey + "." + testKey);
     }
 
+    public void queueSuite(T suiteValue) {
+        if (suite == null) {
+            suite = new BranchNodeWithQueue<>(root, suiteValue);
+            structureIndex.put(null, suite);
+            queueNode(root, suite);
+        }
+    }
+
     public void queueGroup(String groupKey, T groupValue) {
         if (!structureIndex.containsKey(groupKey)) {
             BranchNodeWithQueue<T> group = new BranchNodeWithQueue<>(suite, groupValue);
@@ -87,25 +95,45 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
     }
 
     public BranchNode<T> addSuite(T suiteValue) {
-        suite = new BranchNodeWithQueue<>(root, suiteValue);
-        appendNode(root, suite);
+        if (suite != null) {
+            unqueueNode(root, suite);
+            suite.setValue(suiteValue);
+            appendNode(root, suite);
+        } else {
+            suite = new BranchNodeWithQueue<>(root, suiteValue);
+            appendNode(root, suite);
+        }
         return suite;
     }
 
-    public BranchNode<T> addSummary(T summaryValue) {
-        summary = new BranchNodeImpl<>(root, summaryValue);
-        appendNode(root, summary);
-        return summary;
-    }
-
     public BranchNode<T> addGroup(String groupKey, T groupValue) {
-        return addOrMoveBranch(groupKey, suite, groupValue);
+        BranchNodeImpl<T> group = structureIndex.get(groupKey);
+        if (group != null) {
+            unqueueNode(suite, group);
+            group.setValue(groupValue);
+            appendNode(suite, group);
+        } else {
+            group = new BranchNodeWithQueue<>(suite, groupValue);
+            structureIndex.put(groupKey, group);
+            appendNode(suite, group);
+        }
+        return group;
     }
 
     public BranchNode<T> addTest(String groupKey, String testKey, T testValue) {
         String key = groupKey + "." + testKey;
         BranchNodeImpl<T> group = structureIndex.get(groupKey);
-        return addOrMoveBranch(key, group, testValue);
+        BranchNodeImpl<T> test = structureIndex.get(key);
+        if (test != null) {
+            unqueueNode(group, test);
+            test.setValue(testValue);
+            appendNode(group, test);
+        } else {
+            test = new BranchNodeWithQueue<>(group, testValue);
+            structureIndex.put(key, test);
+            appendNode(group, test);
+        }
+        return test;
     }
 
     public Node<T> addOutput(BranchNode<T> parent, T output) {
@@ -115,23 +143,15 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
         return leaf;
     }
 
+    public BranchNode<T> addSummary(T summaryValue) {
+        summary = new BranchNodeImpl<>(root, summaryValue);
+        appendNode(root, summary);
+        return summary;
+    }
+
     public static <T> Node<T> node(Object rawNode) {
         //noinspection unchecked
         return Node.class.cast(rawNode);
-    }
-
-    private BranchNode<T> addOrMoveBranch(String key, BranchNodeImpl<T> parent, T value) {
-        BranchNodeImpl<T> test = structureIndex.get(key);
-        if (test != null) {
-            removeNode(parent, test);
-            test.setValue(value);
-            appendNode(parent, test);
-        } else {
-            test = new BranchNodeWithQueue<>(parent, value);
-            structureIndex.put(key, test);
-            appendNode(parent, test);
-        }
-        return test;
     }
 
     private void queueNode(BranchNodeWithQueue<T> parent, Node<T> child) {
@@ -160,7 +180,7 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
             fireEvent(event, TreeModelListener::treeNodesInserted);
     }
 
-    private void removeNode(BranchNodeImpl<T> parent, Node<T> child) {
+    private void unqueueNode(BranchNodeImpl<T> parent, Node<T> child) {
             int index = BranchNodeWithQueue.class.cast(parent).take(child);
             TreeModelEvent event = new TreeModelEvent(
                     GTestOutputTreeModel.this,
@@ -258,6 +278,10 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
         public void add(Node<T> child) {
             children.add(child);
         }
+
+        public void clear() {
+            children.clear();
+        }
     }
 
     private static class BranchNodeWithQueue<T> extends BranchNodeImpl<T> {
@@ -294,6 +318,11 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
             int indexInQueue = queued.indexOf(child);
             queued.remove(indexInQueue);
             return indexInQueue + super.childCount();
+        }
+
+        public void clear() {
+            super.clear();
+            queued.clear();
         }
     }
 

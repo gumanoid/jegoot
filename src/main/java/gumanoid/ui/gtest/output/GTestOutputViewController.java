@@ -1,6 +1,10 @@
 package gumanoid.ui.gtest.output;
 
+import com.google.common.base.Preconditions;
 import gumanoid.event.EventDispatcher;
+import gumanoid.event.GTestListEvent;
+import gumanoid.event.GTestListEvent.GroupAnnounce;
+import gumanoid.event.GTestListEvent.TestAnnounce;
 import gumanoid.event.GTestOutputEvent;
 import gumanoid.event.GTestOutputEvent.*;
 import gumanoid.ui.Animation;
@@ -11,12 +15,11 @@ import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
 import java.awt.*;
-import java.util.function.Consumer;
 
 /**
  * Created by Gumanoid on 18.01.2016.
  */
-public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
+public class GTestOutputViewController {
     private final GTestOutputView view;
     private final GTestOutputTreeModel<GTestOutputRow> model;
 
@@ -24,19 +27,20 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
     private final Animation<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> currentGroupIndicator;
     private final Animation<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> currentTestIndicator;
 
-    private final EventDispatcher<GTestOutputEvent> eventDispatcher;
+    private final EventDispatcher<GTestListEvent> listEventDispatcher;
+    private final EventDispatcher<GTestOutputEvent> outputEventDispatcher;
 
     private boolean failsInSuite = false;
     private boolean failsInGroup = false;
 
     public GTestOutputViewController(GTestOutputView view) {
         this.view = view;
-        this.model = new GTestOutputTreeModel<>(new GTestOutputRow(null));
-        this.eventDispatcher = new EventDispatcher<>(this::defaultEventHandler);
+        this.model = view.getModel();
+        this.listEventDispatcher = new EventDispatcher<>(e -> {});
+        this.outputEventDispatcher = new EventDispatcher<>(this::defaultOutputHandler);
 
         DefaultListModel<TreePath> breadCrumbsModel = new DefaultListModel<>();
 
-        view.getTree().setModel(model);
         view.getCrumbs().setModel(breadCrumbsModel);
 
         Action2<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> updateIcon = (node, icon) -> {
@@ -48,19 +52,22 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         currentGroupIndicator = Animation.create(updateIcon);
         currentTestIndicator = Animation.create(updateIcon);
 
-        eventDispatcher.addHandler(OutputBeforeSuiteStarted.class, this::outputBeforeSuiteStarted);
-        eventDispatcher.addHandler(SuiteStart.class, this::suiteStart);
-        eventDispatcher.addHandler(SuiteEnd.class, this::suiteEnd);
-        eventDispatcher.addHandler(GroupStart.class, this::groupStart);
-        eventDispatcher.addHandler(GroupEnd.class, this::groupEnd);
-        eventDispatcher.addHandler(TestStart.class, this::testStart);
-        eventDispatcher.addHandler(TestOutput.class, this::testOutput);
-        eventDispatcher.addHandler(TestPassed.class, this::testPassed);
-        eventDispatcher.addHandler(TestFailed.class, this::testFailed);
-        eventDispatcher.addHandler(SummaryOutput.class, this::summaryOutput);
-        eventDispatcher.addHandler(FailedTestsSummary.class, this::summaryOutput);
-        eventDispatcher.addHandler(FailedTestSummary.class, this::summaryOutput);
-        eventDispatcher.addHandler(PassedTestsSummary.class, this::summaryOutput);
+        listEventDispatcher.addHandler(GroupAnnounce.class, this::groupAnnounce);
+        listEventDispatcher.addHandler(TestAnnounce.class, this::testAnnounce);
+
+        outputEventDispatcher.addHandler(OutputBeforeSuiteStarted.class, this::outputBeforeSuiteStarted);
+        outputEventDispatcher.addHandler(SuiteStart.class, this::suiteStart);
+        outputEventDispatcher.addHandler(SuiteEnd.class, this::suiteEnd);
+        outputEventDispatcher.addHandler(GroupStart.class, this::groupStart);
+        outputEventDispatcher.addHandler(GroupEnd.class, this::groupEnd);
+        outputEventDispatcher.addHandler(TestStart.class, this::testStart);
+        outputEventDispatcher.addHandler(TestOutput.class, this::testOutput);
+        outputEventDispatcher.addHandler(TestPassed.class, this::testPassed);
+        outputEventDispatcher.addHandler(TestFailed.class, this::testFailed);
+        outputEventDispatcher.addHandler(SummaryOutput.class, this::summaryOutput);
+        outputEventDispatcher.addHandler(FailedTestsSummary.class, this::summaryOutput);
+        outputEventDispatcher.addHandler(FailedTestSummary.class, this::summaryOutput);
+        outputEventDispatcher.addHandler(PassedTestsSummary.class, this::summaryOutput);
 
         model.addTreeModelListener(new TreeModelListener() {
             @Override
@@ -77,10 +84,12 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
             }
 
             @Override
-            public void treeNodesRemoved(TreeModelEvent e) {}
+            public void treeNodesRemoved(TreeModelEvent e) {
+            }
 
             @Override
-            public void treeStructureChanged(TreeModelEvent e) {}
+            public void treeStructureChanged(TreeModelEvent e) {
+            }
         });
 
         view.getTreeScroll().getViewport().addChangeListener(e -> {
@@ -118,13 +127,19 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         });
     }
 
-    public void processStarted() {
+    public void resetState() {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         model.clear();
+        model.queueSuite(new GTestOutputRow("Suite"));
+
         failsInGroup = false;
         failsInSuite = false;
     }
 
     public void processFinished(int exitCode) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         stopAnimation();
 
         GTestOutputRow row = new GTestOutputRow("Test finished with exit code " + exitCode);
@@ -135,26 +150,46 @@ public class GTestOutputViewController implements Consumer<GTestOutputEvent> {
         model.addOutput(model.rootNode(), row);
     }
 
+    public void onTestEnumeration(GTestListEvent e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
+        listEventDispatcher.accept(e);
+    }
+
+    public void onTestOutput(GTestOutputEvent e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
+        outputEventDispatcher.accept(e);
+    }
+
     private void stopAnimation() {
         currentSuiteIndicator.stopAnimation();
         currentGroupIndicator.stopAnimation();
         currentTestIndicator.stopAnimation();
     }
 
-    public void accept(GTestOutputEvent e) {
-        eventDispatcher.accept(e);
+    private void defaultOutputHandler(GTestOutputEvent e) {
+        model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
     }
 
-    private void defaultEventHandler(GTestOutputEvent e) {
-        model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
+    private void groupAnnounce(GroupAnnounce e) {
+        GTestOutputRow test = new GTestOutputRow(e.groupName);
+        test.setTextColor(GTestOutputRowStyle.COLOR_QUEUED);
+        model.queueGroup(e.groupName, test);
+    }
+
+    private void testAnnounce(TestAnnounce e) {
+        GTestOutputRow test = new GTestOutputRow(e.testName);
+        test.setTextColor(GTestOutputRowStyle.COLOR_QUEUED);
+        model.queueTest(e.groupName, e.testName, test);
     }
 
     private void outputBeforeSuiteStarted(OutputBeforeSuiteStarted e) {
-        model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
+        model.addOutput(model.rootNode(), new GTestOutputRow(e.outputLine));
     }
 
     private void suiteStart(SuiteStart e) {
-        GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite"));
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite with " + e.testCount + "tests"));
         model.addOutput(suiteNode, new GTestOutputRow(e.outputLine));
 
         currentSuiteIndicator.animate(suiteNode, GTestOutputRowStyle.GRAY_SPINNER);

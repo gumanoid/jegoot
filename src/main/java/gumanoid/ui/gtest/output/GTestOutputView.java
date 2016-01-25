@@ -18,12 +18,15 @@ public class GTestOutputView extends JPanel {
     @VisibleForTesting
     public static final String CRUMBS_NAME = "GTest_output_tree_crumbs";
 
+    private final GTestOutputTreeModel<GTestOutputRow> model;
     private final JTree tree;
     private final JScrollPane treeScroll;
     private final JList<TreePath> crumbs;
 
     public GTestOutputView() {
-        tree = new JTree();
+        this.model = new GTestOutputTreeModel<>(new GTestOutputRow(null));
+
+        tree = new JTree(model);
         tree.setName(TREE_NAME);
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);
@@ -94,6 +97,10 @@ public class GTestOutputView extends JPanel {
         setLayout(new BorderLayout());
         add(crumbs, BorderLayout.NORTH);
         add(treeScroll, BorderLayout.CENTER);
+    }
+
+    GTestOutputTreeModel<GTestOutputRow> getModel() {
+        return model;
     }
 
     JTree getTree() {

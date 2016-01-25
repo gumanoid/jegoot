@@ -1,11 +1,13 @@
 package gumanoid.ui.gtest;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import gumanoid.event.EventDispatcher;
 import gumanoid.event.GTestOutputEvent;
 import gumanoid.event.GTestOutputEvent.SuiteStart;
 import gumanoid.event.GTestOutputEvent.TestFailed;
 import gumanoid.event.GTestOutputEvent.TestPassed;
+import gumanoid.parser.GTestListParser;
 import gumanoid.parser.GTestOutputParser;
 import gumanoid.runner.ProcessLaunchesModel;
 import gumanoid.ui.gtest.output.GTestOutputViewController;
@@ -22,8 +24,8 @@ import java.util.LinkedList;
  */
 public class GTestViewController {
     private static class TestId {
-        public final String group;
-        public final String name;
+        final String group;
+        final String name;
 
         private TestId(String group, String name) {
             this.group = group;
@@ -40,7 +42,8 @@ public class GTestViewController {
 
     private final GTestOutputViewController outputController;
 
-    private final ProcessLaunchesModel testProcess = new ProcessLaunchesModel();
+    private final ProcessLaunchesModel testEnumerationProcess = new ProcessLaunchesModel();
+    private final ProcessLaunchesModel testExecutionProcess = new ProcessLaunchesModel();
     private final String testExePath;
 
     private final Collection<TestId> failedTests = new LinkedList<>();
@@ -56,25 +59,67 @@ public class GTestViewController {
         this.testExePath = testExePath;
         this.outputController = new GTestOutputViewController(view.getTestOutputView());
 
+        view.getRunTests().addActionListener(e -> runTestsTrigger.onNext(null));
+        view.getRerunFailedTests().addActionListener(e -> rerunTestsTrigger.onNext(failedTests));
+        view.getCancelTests().addActionListener(e -> this.cancelTests());
+
+        runTestsTrigger.subscribe(x -> outputController.resetState());
+        rerunTestsTrigger.subscribe(x -> outputController.resetState());
+
+        runTestsTrigger.observeOn(Schedulers.io())
+                .subscribe(x -> {
+                    testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests"));
+                    testExecutionProcess.start(new ProcessBuilder(this.testExePath));
+                });
+        rerunTestsTrigger.observeOn(Schedulers.io())
+                .subscribe(x -> {
+                    testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests", createTestFilter(failedTests)));
+                    testExecutionProcess.start(new ProcessBuilder(this.testExePath, createTestFilter(failedTests)));
+                });
+
         EventDispatcher<GTestOutputEvent> eventDispatcher = new EventDispatcher<>(e -> {});
 
-        testProcess.onStarted()
+        eventDispatcher.addHandler(SuiteStart.class, this::rememberTestCount);
+        eventDispatcher.addHandler(TestFailed.class, this::increaseProgress);
+        eventDispatcher.addHandler(TestPassed.class, this::increaseProgress);
+
+        eventDispatcher.addHandler(TestFailed.class, this::rememberFailedTest);
+
+        testEnumerationProcess.onStarted()
+                .subscribe(process -> {
+                    process.getOutput()
+                            .lift(new GTestListParser())
+                            .observeOn(SwingScheduler.getInstance())
+                            .subscribe(e -> {
+                                Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+                                outputController.onTestEnumeration(e);
+                            });
+                });
+
+        testExecutionProcess.onStarted()
                 .subscribe(process -> {
                     process.getOutput()
                             .lift(new GTestOutputParser())
                             .observeOn(SwingScheduler.getInstance())
-                            .doOnNext(outputController::accept)
-                            .doOnNext(eventDispatcher::accept)
-                            .subscribe(); //todo also handle error
+                            .subscribe(e -> {
+                                Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+                                outputController.onTestOutput(e);
+                                eventDispatcher.accept(e);
+                            }); //todo also handle error
 
                     process.getExitCode()
                             .observeOn(SwingScheduler.getInstance())
-                            .subscribe(outputController::processFinished);
+                            .subscribe(exitCode -> {
+                                Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+                                outputController.processFinished(exitCode);
+                            });
                 });
 
-        testProcess.onStarted()
+        testExecutionProcess.onStarted()
                 .observeOn(SwingScheduler.getInstance())
                 .subscribe(p -> {
+                    Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
                     newFailedTests.clear();
 
                     view.getTestsProgress().setValue(0);
@@ -82,13 +127,13 @@ public class GTestViewController {
                     view.getRunTests().setEnabled(false);
                     view.getRerunFailedTests().setEnabled(false);
                     view.getCancelTests().setEnabled(true);
-
-                    outputController.processStarted();
                 }); //todo also handle error
 
-        testProcess.onFinished()
+        testExecutionProcess.onFinished()
                 .observeOn(SwingScheduler.getInstance())
                 .subscribe(exitCode -> {
+                    Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
                     failedTests.clear();
                     failedTests.addAll(newFailedTests);
 
@@ -96,21 +141,6 @@ public class GTestViewController {
                     view.getRerunFailedTests().setEnabled(!newFailedTests.isEmpty());
                     view.getCancelTests().setEnabled(true);
                 });
-
-        view.getRunTests().addActionListener(e -> runTestsTrigger.onNext(null));
-        view.getRerunFailedTests().addActionListener(e -> rerunTestsTrigger.onNext(failedTests));
-        view.getCancelTests().addActionListener(e -> this.cancelTests());
-
-        runTestsTrigger.observeOn(Schedulers.io())
-                .subscribe(x -> testProcess.start(new ProcessBuilder(this.testExePath)));
-        rerunTestsTrigger.observeOn(Schedulers.io())
-                .subscribe(x -> testProcess.start(new ProcessBuilder(this.testExePath, createTestFilter(failedTests))));
-
-        eventDispatcher.addHandler(SuiteStart.class, this::rememberTestCount);
-        eventDispatcher.addHandler(TestFailed.class, this::increaseProgress);
-        eventDispatcher.addHandler(TestPassed.class, this::increaseProgress);
-
-        eventDispatcher.addHandler(TestFailed.class, this::rememberFailedTest);
     }
 
     public void runAllTests() {
@@ -122,7 +152,7 @@ public class GTestViewController {
     }
 
     public void cancelTests() {
-        testProcess.cancel();
+        testExecutionProcess.cancel();
     }
 
     private void rememberTestCount(SuiteStart e) {

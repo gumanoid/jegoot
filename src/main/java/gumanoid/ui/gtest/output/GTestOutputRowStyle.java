@@ -16,9 +16,10 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * Created by Gumanoid on 25.01.2016.
  */
 public class GTestOutputRowStyle {
+    static final Color COLOR_QUEUED = Color.YELLOW;
+    static final Color COLOR_RUNNING = Color.BLUE;
     static final Color COLOR_FAILED = Color.RED;
     static final Color COLOR_PASSED = Color.GREEN;
-    static final Color COLOR_RUNNING = Color.BLUE;
 
     static final Icon TEST_PASSED_ICON = Icons.load("test_passed.png");
     static final Icon TEST_FAILED_ICON = Icons.load("test_failed.png");
@@ -33,7 +34,6 @@ public class GTestOutputRowStyle {
             .flatMap(frames -> Observable.interval(125, MILLISECONDS, SwingScheduler.getInstance())
                     .map(index -> frames.get((int) (index % frames.size())))
             );
-
     static final Observable<Icon> RED_SPINNER = Observable.range(1, 8)
             .map(i -> Icons.load("spinner_red_" + i + ".png"))
             .toList()
