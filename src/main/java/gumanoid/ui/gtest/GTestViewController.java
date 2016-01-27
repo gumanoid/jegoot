@@ -12,11 +12,13 @@ import gumanoid.parser.GTestOutputParser;
 import gumanoid.runner.ProcessLaunchesModel;
 import gumanoid.ui.gtest.output.GTestOutputViewController;
 import rx.Observable;
+import rx.observables.SwingObservable;
 import rx.schedulers.Schedulers;
 import rx.schedulers.SwingScheduler;
 import rx.subjects.BehaviorSubject;
 
 import javax.swing.*;
+import java.awt.event.ActionEvent;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -47,38 +49,64 @@ public class GTestViewController {
     private final ProcessLaunchesModel testExecutionProcess = new ProcessLaunchesModel();
     private final String testExePath;
 
-    private final Collection<TestId> failedTests = new LinkedList<>();
+    private final BehaviorSubject<Collection<TestId>> failedTests = BehaviorSubject.create();
 
-    private boolean testsAreRunning = false;
-    private final Collection<TestId> newFailedTests = new LinkedList<>();
+    private Collection<TestId> newFailedTests = null;
 
     //todo such bindings are more suitable for VM in MVVM pattern than for controller
     //https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples has some interesting ideas
-    private final BehaviorSubject<Void> runTestsTrigger = BehaviorSubject.create();
-    private final BehaviorSubject<Collection<TestId>> rerunTestsTrigger = BehaviorSubject.create();
-
-    //todo Use Observable.combineLatest:
-    // - to combine 'rerun' and 'failed tests' for starting process
-    // - to combine 'is running' and 'failed tests' for setting rerun button's 'enabled' flag
 
     public GTestViewController(GTestView view, String testExePath) {
         this.view = view;
         this.testExePath = testExePath;
         this.outputController = new GTestOutputViewController(view.getTestOutputView());
 
-        view.getRunTests().addActionListener(e -> runTestsTrigger.onNext(null));
-        view.getRerunFailedTests().addActionListener(e -> rerunTestsTrigger.onNext(failedTests));
-        view.getCancelTests().addActionListener(e -> this.cancelTests());
+        Observable<ActionEvent> runTests = SwingObservable.fromButtonAction(view.getRunTests());
+        Observable<ActionEvent> rerunTests = SwingObservable.fromButtonAction(view.getRerunFailedTests());
+        Observable<ActionEvent> cancelTests = SwingObservable.fromButtonAction(view.getCancelTests());
 
-        runTestsTrigger.observeOn(Schedulers.io())
+        Observable<Boolean> testsAreRunning = Observable.merge(
+                testExecutionProcess.onStarted().map(x -> true),
+                testExecutionProcess.onFinished().map(x -> false)
+        ).observeOn(SwingScheduler.getInstance());
+
+        Observable.merge(runTests, rerunTests)
+                .subscribe(x -> {
+                    view.getRunTests().setEnabled(false);
+                    view.getRerunFailedTests().setEnabled(false);
+                });
+
+        testsAreRunning.subscribe(r -> {
+            view.getRunTests().setEnabled(!r);
+            view.getCancelTests().setEnabled(r);
+        });
+
+        cancelTests.subscribe(x -> view.getCancelTests().setEnabled(false));
+
+        Observable.combineLatest(
+                testsAreRunning,
+                failedTests,
+                (r, f) -> !r && !f.isEmpty()
+        ).subscribe(view.getRerunFailedTests()::setEnabled);
+
+        runTests.observeOn(Schedulers.io())
                 .subscribe(x -> {
                     testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests"));
                     testExecutionProcess.start(new ProcessBuilder(this.testExePath));
                 });
-        rerunTestsTrigger.observeOn(Schedulers.io())
+
+        rerunTests.observeOn(Schedulers.io())
+                .flatMap(x -> failedTests)
+                .map(GTestViewController::createTestFilter)
+                .subscribe(filter -> {
+                    testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests", filter));
+                    testExecutionProcess.start(new ProcessBuilder(this.testExePath, filter));
+                });
+
+        cancelTests.observeOn(Schedulers.io())
                 .subscribe(x -> {
-                    testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests", createTestFilter(failedTests)));
-                    testExecutionProcess.start(new ProcessBuilder(this.testExePath, createTestFilter(failedTests)));
+                    testEnumerationProcess.cancel();
+                    testExecutionProcess.cancel();
                 });
 
         EventDispatcher<GTestOutputEvent> eventDispatcher = new EventDispatcher<>(e -> {});
@@ -121,45 +149,31 @@ public class GTestViewController {
                             });
                 });
 
-        Observable.merge(runTestsTrigger, rerunTestsTrigger)
+        testExecutionProcess.onFinished()
                 .observeOn(SwingScheduler.getInstance())
                 .subscribe(x -> {
-                    newFailedTests.clear();
+                    failedTests.onNext(newFailedTests);
+                });
+
+        Observable.merge(runTests, rerunTests)
+                .observeOn(SwingScheduler.getInstance())
+                .subscribe(x -> {
+                    newFailedTests = new LinkedList<>();
                     view.getTestsProgress().setValue(0);
                     outputController.resetState();
                 });
-
-        testExecutionProcess.onStarted().observeOn(SwingScheduler.getInstance()).subscribe(x -> {
-            testsAreRunning = true;
-            updateButtonsState();
-        });
-
-        testExecutionProcess.onFinished().observeOn(SwingScheduler.getInstance()).subscribe(x -> {
-            failedTests.clear();
-            failedTests.addAll(newFailedTests);
-            newFailedTests.clear();
-
-            testsAreRunning = false;
-            updateButtonsState();
-        });
-    }
-
-    private void updateButtonsState() {
-        view.getRunTests().setEnabled(!testsAreRunning);
-        view.getRerunFailedTests().setEnabled(!testsAreRunning && !failedTests.isEmpty());
-        view.getCancelTests().setEnabled(testsAreRunning);
     }
 
     public void runAllTests() {
-        runTestsTrigger.onNext(null);
+        view.getRunTests().doClick();
     }
 
     public void runFailedTests() {
-        rerunTestsTrigger.onNext(failedTests);
+        view.getRerunFailedTests().doClick();
     }
 
     public void cancelTests() {
-        testExecutionProcess.cancel();
+        view.getCancelTests().doClick();
     }
 
     private void rememberTestCount(SuiteStart e) {
