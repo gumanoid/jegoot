@@ -11,6 +11,7 @@ import gumanoid.parser.GTestListParser;
 import gumanoid.parser.GTestOutputParser;
 import gumanoid.runner.ProcessLaunchesModel;
 import gumanoid.ui.gtest.output.GTestOutputViewController;
+import rx.Observable;
 import rx.schedulers.Schedulers;
 import rx.schedulers.SwingScheduler;
 import rx.subjects.BehaviorSubject;
@@ -47,12 +48,18 @@ public class GTestViewController {
     private final String testExePath;
 
     private final Collection<TestId> failedTests = new LinkedList<>();
+
+    private boolean testsAreRunning = false;
     private final Collection<TestId> newFailedTests = new LinkedList<>();
 
     //todo such bindings are more suitable for VM in MVVM pattern than for controller
     //https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples has some interesting ideas
     private final BehaviorSubject<Void> runTestsTrigger = BehaviorSubject.create();
     private final BehaviorSubject<Collection<TestId>> rerunTestsTrigger = BehaviorSubject.create();
+
+    //todo Use Observable.combineLatest:
+    // - to combine 'rerun' and 'failed tests' for starting process
+    // - to combine 'is running' and 'failed tests' for setting rerun button's 'enabled' flag
 
     public GTestViewController(GTestView view, String testExePath) {
         this.view = view;
@@ -62,9 +69,6 @@ public class GTestViewController {
         view.getRunTests().addActionListener(e -> runTestsTrigger.onNext(null));
         view.getRerunFailedTests().addActionListener(e -> rerunTestsTrigger.onNext(failedTests));
         view.getCancelTests().addActionListener(e -> this.cancelTests());
-
-        runTestsTrigger.subscribe(x -> outputController.resetState());
-        rerunTestsTrigger.subscribe(x -> outputController.resetState());
 
         runTestsTrigger.observeOn(Schedulers.io())
                 .subscribe(x -> {
@@ -115,32 +119,31 @@ public class GTestViewController {
                             });
                 });
 
-        testExecutionProcess.onStarted()
-                .observeOn(SwingScheduler.getInstance())
-                .subscribe(p -> {
-                    Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+        Observable.merge(runTestsTrigger, rerunTestsTrigger).subscribe(x -> {
+            newFailedTests.clear();
+            view.getTestsProgress().setValue(0);
+            outputController.resetState();
+        });
 
-                    newFailedTests.clear();
+        testExecutionProcess.onStarted().observeOn(SwingScheduler.getInstance()).subscribe(x -> {
+            testsAreRunning = true;
+            updateButtonsState();
+        });
 
-                    view.getTestsProgress().setValue(0);
+        testExecutionProcess.onFinished().observeOn(SwingScheduler.getInstance()).subscribe(x -> {
+            failedTests.clear();
+            failedTests.addAll(newFailedTests);
+            newFailedTests.clear();
 
-                    view.getRunTests().setEnabled(false);
-                    view.getRerunFailedTests().setEnabled(false);
-                    view.getCancelTests().setEnabled(true);
-                }); //todo also handle error
+            testsAreRunning = false;
+            updateButtonsState();
+        });
+    }
 
-        testExecutionProcess.onFinished()
-                .observeOn(SwingScheduler.getInstance())
-                .subscribe(exitCode -> {
-                    Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-
-                    failedTests.clear();
-                    failedTests.addAll(newFailedTests);
-
-                    view.getRunTests().setEnabled(true);
-                    view.getRerunFailedTests().setEnabled(!newFailedTests.isEmpty());
-                    view.getCancelTests().setEnabled(true);
-                });
+    private void updateButtonsState() {
+        view.getRunTests().setEnabled(!testsAreRunning);
+        view.getRerunFailedTests().setEnabled(!testsAreRunning && !failedTests.isEmpty());
+        view.getCancelTests().setEnabled(testsAreRunning);
     }
 
     public void runAllTests() {

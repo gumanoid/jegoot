@@ -12,7 +12,9 @@ import java.nio.file.Paths;
 
 //fixed Elapsed time is different each time GTestRunnerIT starts test samples, fix test
 //fixed Run test_samples; press re-run -> java.lang.ArrayIndexOutOfBoundsException: -1 @ GTestOutputTreeModel$BranchNodeWithQueue.take(GTestOutputTreeModel.java:295)
-//fixme 'Re-run' button sometimes isn't enabled
+//fixed 'Re-run' button sometimes isn't enabled
+//fixme UI quirk: after 'rerun tests', there is a space between bread crumbs and output tree, which translates clicks into tree O_o
+//It appears only if 'rerun' clicked when tree scrollbar is not shown
 
 //done Run external process and display it's output in GUI
 //done Support external process interruption
@@ -28,6 +30,8 @@ import java.nio.file.Paths;
 //done UI polishing: colors
 //done Query tests list before execution
 //TODO Cover GTestOutputTreeModel with tests
+//todo Use Guice's method interceptor to simplify event emitting/receiving
+//another option is Guava EventBus https://github.com/google/guava/wiki/EventBusExplained
 //todo UI polishing: two-section progress bar, to show failed/passed ratio
 //done UI polishing: breadcrumbs
 //todo Passing in test flags
