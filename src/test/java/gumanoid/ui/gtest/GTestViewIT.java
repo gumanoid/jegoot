@@ -4,6 +4,7 @@ import gumanoid.ui.gtest.output.GTestOutputView;
 import org.fest.swing.fixture.FrameFixture;
 import org.fest.swing.fixture.JTreeFixture;
 import org.testng.annotations.*;
+import sun.awt.OSInfo;
 
 import javax.swing.*;
 import java.awt.*;
@@ -42,11 +43,15 @@ public class GTestViewIT {
         window.cleanUp();
     }
 
+    String exeName(String name) {
+        return OSInfo.getOSType() == OSInfo.OSType.WINDOWS ? name + ".exe" : name;
+    }
+
     @DataProvider(name = "testSamplesOutput")
     Object[][] testSamplesOutput() {
         return new Object[][] {
                 {
-                        "empty_suite.exe",
+                        exeName("empty_suite"),
                         new String[] {
                                 "Suite",
                                 "[==========] Running 0 tests from 0 test cases.",
@@ -56,7 +61,7 @@ public class GTestViewIT {
                         }
                 },
                 {
-                        "single_passing.exe",
+                        exeName("single_passing"),
                         new String[] {
                                 "Suite",
                                 "[==========] Running 1 test from 1 test case.",
@@ -75,7 +80,7 @@ public class GTestViewIT {
                         }
                 },
                 {
-                        "single_failing.exe",
+                        exeName("single_failing"),
                         new String[] {
                                 "Suite",
                                 "[==========] Running 1 test from 1 test case.",
@@ -101,7 +106,7 @@ public class GTestViewIT {
                         }
                 },
                 {
-                        "two_tests_in_one_group.exe",
+                        exeName("two_tests_in_one_group"),
                         new String[] {
                                 "Suite",
                                 "[==========] Running 2 tests from 1 test case.",
@@ -130,7 +135,7 @@ public class GTestViewIT {
                         }
                 },
                 {
-                        "two_groups_with_one_test_each.exe",
+                        exeName("two_groups_with_one_test_each"),
                         new String[] {
                                 "Suite",
                                 "[==========] Running 2 tests from 2 test cases.",
@@ -164,7 +169,7 @@ public class GTestViewIT {
                         }
                 },
                 {
-                        "elapsed_time_off.exe",
+                        exeName("elapsed_time_off"),
                         new String[] {
                                 "Suite",
                                 "[==========] Running 2 tests from 2 test cases.",

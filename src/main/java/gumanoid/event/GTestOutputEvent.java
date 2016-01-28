@@ -79,7 +79,8 @@ public class GTestOutputEvent {
         @Override
         public String toString() {
             return "TestOutput{" +
-                    "groupName=" + groupName +
+                    "outputLine='" + outputLine + '\'' +
+                    ", groupName=" + groupName +
                     ", testName=" + testName +
                     '}';
         }
@@ -159,7 +160,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "SuiteStart{" +
                     "outputLine='" + outputLine + '\'' +
-                    "testCount=" + testCount +
+                    ", testCount=" + testCount +
                     ", testGroupCount=" + testGroupCount +
                     '}';
         }
@@ -201,7 +202,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "SuiteEnd{" +
                     "outputLine='" + outputLine + '\'' +
-                    "testCount=" + testCount +
+                    ", testCount=" + testCount +
                     ", testGroupCount=" + testGroupCount +
                     '}';
         }
@@ -243,7 +244,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "GroupStart{" +
                     "outputLine='" + outputLine + '\'' +
-                    "groupName='" + groupName + '\'' +
+                    ", groupName='" + groupName + '\'' +
                     ", testsInGroup=" + testsInGroup +
                     '}';
         }
@@ -290,7 +291,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "GroupEnd{" +
                     "outputLine='" + outputLine + '\'' +
-                    "groupName='" + groupName + '\'' +
+                    ", groupName='" + groupName + '\'' +
                     ", testsInGroup=" + testsInGroup +
                     '}';
         }
@@ -332,7 +333,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "TestStart{" +
                     "outputLine='" + outputLine + '\'' +
-                    "groupName='" + groupName + '\'' +
+                    ", groupName='" + groupName + '\'' +
                     ", testName='" + testName + '\'' +
                     '}';
         }
@@ -374,7 +375,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "TestPassed{" +
                     "outputLine='" + outputLine + '\'' +
-                    "groupName='" + groupName + '\'' +
+                    ", groupName='" + groupName + '\'' +
                     ", testName='" + testName + '\'' +
                     '}';
         }
@@ -417,7 +418,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "TestFailed{" +
                     "outputLine='" + outputLine + '\'' +
-                    "groupName='" + groupName + '\'' +
+                    ", groupName='" + groupName + '\'' +
                     ", testName='" + testName + '\'' +
                     '}';
         }
@@ -458,7 +459,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "PassedTestsSummary{" +
                     "outputLine='" + outputLine + '\'' +
-                    "passedTestCount=" + passedTestCount +
+                    ", passedTestCount=" + passedTestCount +
                     '}';
         }
     }
@@ -497,7 +498,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "FailedTestsSummary{" +
                     "outputLine='" + outputLine + '\'' +
-                    "failedTestCount=" + failedTestCount +
+                    ", failedTestCount=" + failedTestCount +
                     '}';
         }
     }
@@ -540,7 +541,7 @@ public class GTestOutputEvent {
         public String toString() {
             return "FailedTestSummary{" +
                     "outputLine='" + outputLine + '\'' +
-                    "groupName='" + groupName + '\'' +
+                    ", groupName='" + groupName + '\'' +
                     ", failedTest='" + failedTest + '\'' +
                     '}';
         }

@@ -1,5 +1,7 @@
 package gumanoid.ui.gtest.output;
 
+import com.google.common.base.Preconditions;
+
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
@@ -71,12 +73,13 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
     public void queueSuite(T suiteValue) {
         if (suite == null) {
             suite = new BranchNodeWithQueue<>(root, suiteValue);
-            structureIndex.put(null, suite);
             queueNode(root, suite);
         }
     }
 
     public void queueGroup(String groupKey, T groupValue) {
+        Preconditions.checkState(suite != null);
+
         if (!structureIndex.containsKey(groupKey)) {
             BranchNodeWithQueue<T> group = new BranchNodeWithQueue<>(suite, groupValue);
             structureIndex.put(groupKey, group);
@@ -88,6 +91,8 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
         String key = groupKey + "." + testKey;
         if (!structureIndex.containsKey(key)) {
             BranchNodeWithQueue<T> group = (BranchNodeWithQueue<T>) structureIndex.get(groupKey);
+            Preconditions.checkState(group != null);
+
             BranchNodeWithQueue<T> test = new BranchNodeWithQueue<>(group, testValue);
             structureIndex.put(key, test);
             queueNode(group, test);
@@ -107,6 +112,8 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
     }
 
     public BranchNode<T> addGroup(String groupKey, T groupValue) {
+        Preconditions.checkState(suite != null);
+
         BranchNodeImpl<T> group = structureIndex.get(groupKey);
         if (group != null) {
             unqueueNode(suite, group);
@@ -123,6 +130,8 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
     public BranchNode<T> addTest(String groupKey, String testKey, T testValue) {
         String key = groupKey + "." + testKey;
         BranchNodeImpl<T> group = structureIndex.get(groupKey);
+        Preconditions.checkState(group != null);
+
         BranchNodeImpl<T> test = structureIndex.get(key);
         if (test != null) {
             unqueueNode(group, test);
@@ -137,6 +146,8 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
     }
 
     public Node<T> addOutput(BranchNode<T> parent, T output) {
+        Preconditions.checkState(parent != null);
+
         BranchNodeImpl<T> impl = (BranchNodeImpl<T>) parent;
         LeafNode<T> leaf = new LeafNode<>(impl, output);
         appendNode(impl, leaf);
@@ -316,6 +327,7 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
 
         public int take(Node<T> child) {
             int indexInQueue = queued.indexOf(child);
+            Preconditions.checkState(indexInQueue != -1);
             queued.remove(indexInQueue);
             return indexInQueue + super.childCount();
         }
