@@ -30,7 +30,7 @@ import java.nio.file.Paths;
 //done UI polishing: colors
 //done Query tests list before execution
 //todo Cover GTestOutputTreeModel with tests
-//todo Use Guice's method interceptor to simplify event emitting/receiving
+//done Use Guice's method interceptor to simplify event emitting/receiving
 //another option is Guava EventBus https://github.com/google/guava/wiki/EventBusExplained
 //todo UI polishing: two-section progress bar, to show failed/passed ratio
 //done UI polishing: breadcrumbs

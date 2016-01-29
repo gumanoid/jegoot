@@ -2,8 +2,9 @@ package gumanoid.ui.gtest;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import gumanoid.event.EventDispatcher;
-import gumanoid.event.GTestOutputEvent;
+import com.google.common.eventbus.DeadEvent;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import gumanoid.event.GTestOutputEvent.SuiteStart;
 import gumanoid.event.GTestOutputEvent.TestFailed;
 import gumanoid.event.GTestOutputEvent.TestPassed;
@@ -45,6 +46,10 @@ public class GTestViewController {
 
     private final GTestOutputViewController outputController;
 
+    private final EventBus eventBus = new EventBus((t, ctx) -> {
+        t.printStackTrace();
+    });
+
     private final ProcessLaunchesModel testEnumerationProcess = new ProcessLaunchesModel();
     private final ProcessLaunchesModel testExecutionProcess = new ProcessLaunchesModel();
     private final String testExePath;
@@ -60,6 +65,9 @@ public class GTestViewController {
         this.view = view;
         this.testExePath = testExePath;
         this.outputController = new GTestOutputViewController(view.getTestOutputView());
+
+        eventBus.register(this);
+        eventBus.register(outputController);
 
         Observable<ActionEvent> runTests = SwingObservable.fromButtonAction(view.getRunTests());
         Observable<ActionEvent> rerunTests = SwingObservable.fromButtonAction(view.getRerunFailedTests());
@@ -109,14 +117,6 @@ public class GTestViewController {
                     testExecutionProcess.cancel();
                 });
 
-        EventDispatcher<GTestOutputEvent> eventDispatcher = new EventDispatcher<>(e -> {});
-
-        eventDispatcher.addHandler(SuiteStart.class, this::rememberTestCount);
-        eventDispatcher.addHandler(TestFailed.class, this::increaseProgress);
-        eventDispatcher.addHandler(TestPassed.class, this::increaseProgress);
-
-        eventDispatcher.addHandler(TestFailed.class, this::rememberFailedTest);
-
         testEnumerationProcess.onStarted()
                 .subscribe(process -> {
                     process.getOutput()
@@ -125,7 +125,7 @@ public class GTestViewController {
 //                            .doOnNext(System.out::println)
                             .subscribe(e -> {
                                 Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-                                outputController.onTestEnumeration(e);
+                                eventBus.post(e);
                             });
                 });
 
@@ -137,8 +137,7 @@ public class GTestViewController {
 //                            .doOnNext(System.out::println)
                             .subscribe(e -> {
                                 Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-                                outputController.onTestOutput(e);
-                                eventDispatcher.accept(e);
+                                eventBus.post(e);
                             }); //todo also handle error
 
                     process.getExitCode()
@@ -176,17 +175,31 @@ public class GTestViewController {
         view.getCancelTests().doClick();
     }
 
-    private void rememberTestCount(SuiteStart e) {
+    @Subscribe
+    public void rememberTestCount(SuiteStart e) {
         view.getTestsProgress().setMaximum(e.testCount);
     }
 
-    private void increaseProgress(GTestOutputEvent e) {
+    @Subscribe
+    public void increaseProgress(TestFailed e) {
         JProgressBar progress = view.getTestsProgress();
         progress.setValue(progress.getValue() + 1);
     }
 
-    private void rememberFailedTest(TestFailed e) {
+    @Subscribe
+    public void increaseProgress(TestPassed e) {
+        JProgressBar progress = view.getTestsProgress();
+        progress.setValue(progress.getValue() + 1);
+    }
+
+    @Subscribe
+    public void rememberFailedTest(TestFailed e) {
         newFailedTests.add(new TestId(e.groupName, e.testName));
+    }
+
+    @Subscribe
+    public void onDeadEvent(DeadEvent e) {
+        System.out.println("Unhandled event: " + e.getEvent());
     }
 
     //todo check what will happen if both cmd line param and env var will be set to different values

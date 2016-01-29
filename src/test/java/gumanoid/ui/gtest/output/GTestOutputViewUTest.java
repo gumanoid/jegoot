@@ -8,6 +8,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import javax.swing.*;
+import javax.swing.tree.TreeModel;
 
 import java.awt.*;
 
@@ -21,12 +22,12 @@ public class GTestOutputViewUTest {
     FrameFixture window;
     JFrame ui;
     GTestOutputView outputView;
-    GTestOutputTreeModel<GTestOutputRow> model = new GTestOutputTreeModel<>(null);
+    GTestOutputTreeModel<GTestOutputRow> model;
 
     @BeforeClass void initFrameFixture() {
         ui = new JFrame("Title");
         outputView = new GTestOutputView();
-        outputView.getTree().setModel(model);
+        model = (GTestOutputTreeModel<GTestOutputRow>) outputView.getTree().getModel();
         ui.getContentPane().add(outputView, BorderLayout.CENTER);
 
         window = new FrameFixture(ui);

@@ -1,11 +1,9 @@
 package gumanoid.ui.gtest.output;
 
 import com.google.common.base.Preconditions;
-import gumanoid.event.EventDispatcher;
-import gumanoid.event.GTestListEvent;
+import com.google.common.eventbus.Subscribe;
 import gumanoid.event.GTestListEvent.GroupAnnounce;
 import gumanoid.event.GTestListEvent.TestAnnounce;
-import gumanoid.event.GTestOutputEvent;
 import gumanoid.event.GTestOutputEvent.*;
 import gumanoid.ui.Animation;
 import rx.functions.Action2;
@@ -27,17 +25,12 @@ public class GTestOutputViewController {
     private final Animation<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> currentGroupIndicator;
     private final Animation<GTestOutputTreeModel.Node<GTestOutputRow>, Icon> currentTestIndicator;
 
-    private final EventDispatcher<GTestListEvent> listEventDispatcher;
-    private final EventDispatcher<GTestOutputEvent> outputEventDispatcher;
-
     private boolean failsInSuite = false;
     private boolean failsInGroup = false;
 
     public GTestOutputViewController(GTestOutputView view) {
         this.view = view;
         this.model = view.getModel();
-        this.listEventDispatcher = new EventDispatcher<>(e -> {});
-        this.outputEventDispatcher = new EventDispatcher<>(this::defaultOutputHandler);
 
         DefaultListModel<TreePath> breadCrumbsModel = new DefaultListModel<>();
 
@@ -51,23 +44,6 @@ public class GTestOutputViewController {
         currentSuiteIndicator = Animation.create(updateIcon);
         currentGroupIndicator = Animation.create(updateIcon);
         currentTestIndicator = Animation.create(updateIcon);
-
-        listEventDispatcher.addHandler(GroupAnnounce.class, this::groupAnnounce);
-        listEventDispatcher.addHandler(TestAnnounce.class, this::testAnnounce);
-
-        outputEventDispatcher.addHandler(OutputBeforeSuiteStarted.class, this::outputBeforeSuiteStarted);
-        outputEventDispatcher.addHandler(SuiteStart.class, this::suiteStart);
-        outputEventDispatcher.addHandler(SuiteEnd.class, this::suiteEnd);
-        outputEventDispatcher.addHandler(GroupStart.class, this::groupStart);
-        outputEventDispatcher.addHandler(GroupEnd.class, this::groupEnd);
-        outputEventDispatcher.addHandler(TestStart.class, this::testStart);
-        outputEventDispatcher.addHandler(TestOutput.class, this::testOutput);
-        outputEventDispatcher.addHandler(TestPassed.class, this::testPassed);
-        outputEventDispatcher.addHandler(TestFailed.class, this::testFailed);
-        outputEventDispatcher.addHandler(SummaryOutput.class, this::summaryOutput);
-        outputEventDispatcher.addHandler(FailedTestsSummary.class, this::summaryOutput);
-        outputEventDispatcher.addHandler(FailedTestSummary.class, this::summaryOutput);
-        outputEventDispatcher.addHandler(PassedTestsSummary.class, this::summaryOutput);
 
         model.addTreeModelListener(new TreeModelListener() {
             @Override
@@ -150,52 +126,41 @@ public class GTestOutputViewController {
         model.addOutput(model.rootNode(), row);
     }
 
-    public void onTestEnumeration(GTestListEvent e) {
-        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-
-        listEventDispatcher.accept(e);
-    }
-
-    public void onTestOutput(GTestOutputEvent e) {
-        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-
-        outputEventDispatcher.accept(e);
-    }
-
     private void stopAnimation() {
         currentSuiteIndicator.stopAnimation();
         currentGroupIndicator.stopAnimation();
         currentTestIndicator.stopAnimation();
     }
 
-    private void defaultOutputHandler(GTestOutputEvent e) {
-        model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
-    }
-
-    private void groupAnnounce(GroupAnnounce e) {
+    @Subscribe
+    public void groupAnnounce(GroupAnnounce e) {
         GTestOutputRow test = new GTestOutputRow(e.groupName);
         test.setTextColor(GTestOutputRowStyle.COLOR_QUEUED);
         model.queueGroup(e.groupName, test);
     }
 
-    private void testAnnounce(TestAnnounce e) {
+    @Subscribe
+    public void testAnnounce(TestAnnounce e) {
         GTestOutputRow test = new GTestOutputRow(e.testName);
         test.setTextColor(GTestOutputRowStyle.COLOR_QUEUED);
         model.queueTest(e.groupName, e.testName, test);
     }
 
-    private void outputBeforeSuiteStarted(OutputBeforeSuiteStarted e) {
+    @Subscribe
+    public void outputBeforeSuiteStarted(OutputBeforeSuiteStarted e) {
         model.addOutput(model.rootNode(), new GTestOutputRow(e.outputLine));
     }
 
-    private void suiteStart(SuiteStart e) {
+    @Subscribe
+    public void suiteStart(SuiteStart e) {
         GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite with " + e.testCount + "tests"));
         model.addOutput(suiteNode, new GTestOutputRow(e.outputLine));
 
         currentSuiteIndicator.animate(suiteNode, GTestOutputRowStyle.GRAY_SPINNER);
     }
 
-    private void suiteEnd(SuiteEnd e) {
+    @Subscribe
+    public void suiteEnd(SuiteEnd e) {
         GTestOutputRow suite = model.suiteNode().getValue();
 
         model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
@@ -215,7 +180,8 @@ public class GTestOutputViewController {
         model.addSummary(summaryNode);
     }
 
-    private void groupStart(GroupStart e) {
+    @Subscribe
+    public void groupStart(GroupStart e) {
         failsInGroup = false;
 
         GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.addGroup(e.groupName, new GTestOutputRow(e.groupName + " with " + e.testsInGroup + " test(s)"));
@@ -226,7 +192,8 @@ public class GTestOutputViewController {
         currentGroupIndicator.animate(groupNode, GTestOutputRowStyle.GRAY_SPINNER);
     }
 
-    private void groupEnd(GroupEnd e) {
+    @Subscribe
+    public void groupEnd(GroupEnd e) {
         GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.groupNode(e.groupName);
         GTestOutputRow group = groupNode.getValue();
 
@@ -244,7 +211,8 @@ public class GTestOutputViewController {
         }
     }
 
-    private void testStart(TestStart e) {
+    @Subscribe
+    public void testStart(TestStart e) {
         GTestOutputRow test = new GTestOutputRow(e.testName);
         test.setTextColor(GTestOutputRowStyle.COLOR_RUNNING);
 
@@ -254,7 +222,8 @@ public class GTestOutputViewController {
         currentTestIndicator.animate(testNode, GTestOutputRowStyle.GRAY_SPINNER);
     }
 
-    private void testOutput(TestOutput e) {
+    @Subscribe
+    public void testOutput(TestOutput e) {
         GTestOutputTreeModel.BranchNode<GTestOutputRow> parentNode =
                 e.groupName.isPresent() ? e.testName.isPresent()
                         ? model.testNode(e.groupName.get(), e.testName.get())
@@ -264,7 +233,8 @@ public class GTestOutputViewController {
         model.addOutput(parentNode, new GTestOutputRow(e.outputLine));
     }
 
-    private void testPassed(TestPassed e) {
+    @Subscribe
+    public void testPassed(TestPassed e) {
         GTestOutputTreeModel.BranchNode<GTestOutputRow> testNode = model.testNode(e.groupName, e.testName);
         GTestOutputRow test = testNode.getValue();
         test.setTextColor(GTestOutputRowStyle.COLOR_PASSED);
@@ -275,7 +245,8 @@ public class GTestOutputViewController {
         model.addOutput(testNode, new GTestOutputRow(e.outputLine));
     }
 
-    private void testFailed(TestFailed e) {
+    @Subscribe
+    public void testFailed(TestFailed e) {
         failsInGroup = true;
         failsInSuite = true;
 
@@ -298,7 +269,23 @@ public class GTestOutputViewController {
         model.addOutput(testNode, new GTestOutputRow(e.outputLine));
     }
 
-    private void summaryOutput(GTestOutputEvent e) {
+    @Subscribe
+    public void summaryOutput(SummaryOutput e) {
+        model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
+    }
+
+    @Subscribe
+    public void summaryOutput(PassedTestsSummary e) {
+        model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
+    }
+
+    @Subscribe
+    public void summaryOutput(FailedTestsSummary e) {
+        model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
+    }
+
+    @Subscribe
+    public void summaryOutput(FailedTestSummary e) {
         model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
     }
 }
