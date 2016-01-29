@@ -17,7 +17,7 @@ import java.util.function.BiConsumer;
  *
  * Created by Gumanoid on 24.01.2016.
  */
-public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with tests
+public class GTestOutputTreeModel<T> implements TreeModel {
     public interface Node<T> {
         Node<T> getParent();
         T getValue();
@@ -179,7 +179,7 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
     }
 
     private void appendNode(BranchNodeImpl<T> parent, Node<T> child) {
-            int index = parent.childCount();
+            int index = parent.add(child);
             TreeModelEvent event = new TreeModelEvent(
                     GTestOutputTreeModel.this,
                     new Path(parent),
@@ -187,7 +187,6 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
                     new Object[] { child }
             );
 
-            parent.add(child);
             fireEvent(event, TreeModelListener::treeNodesInserted);
     }
 
@@ -268,7 +267,7 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
 
         @Override
         public boolean isLeaf() {
-            return false;
+            return childCount() == 0;
         }
 
         @Override
@@ -286,8 +285,10 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
             return children.indexOf(child);
         }
 
-        public void add(Node<T> child) {
+        public int add(Node<T> child) {
+            int index = children.size();
             children.add(child);
+            return index;
         }
 
         public void clear() {
@@ -318,7 +319,16 @@ public class GTestOutputTreeModel<T> implements TreeModel { //todo Cover with te
         @Override
         public int indexOf(Node<T> child) {
             int index = super.indexOf(child);
-            return index != -1 ? index : queued.indexOf(child);
+            if (index != -1) {
+                return index;
+            }
+
+            index = queued.indexOf(child);
+            if (index != -1) {
+                return super.childCount() + index;
+            }
+
+            return -1;
         }
 
         public void queue(Node<T> child) {

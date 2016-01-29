@@ -12,7 +12,7 @@ import java.io.File;
 import java.nio.file.Paths;
 
 import static java.lang.Thread.sleep;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Created by Gumanoid on 13.01.2016.
@@ -215,11 +215,10 @@ public class GTestViewIT {
             String actual = tree.valueAt(i);
             String expected = expectedOutput[i];
 
-            assertTrue(
-                    //equality check is impossible because of elapsed time output
-                    actual.startsWith(expected),
-                    "Row #" + i + ":\n" + actual + "\ndoes not start with\n" + expected + "\n"
-            );
+            if (!actual.startsWith(expected)) {
+                //equality check is impossible because of elapsed time output
+                fail("Discrepancy at row #" + i + "\nExpected: " + expected + "\nActual  : " + actual + "\n");
+            }
         }
     }
 }

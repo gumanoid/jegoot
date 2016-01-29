@@ -94,6 +94,7 @@ public class GTestViewController {
                     process.getOutput()
                             .lift(new GTestListParser())
                             .observeOn(SwingScheduler.getInstance())
+//                            .doOnNext(System.out::println)
                             .subscribe(e -> {
                                 Preconditions.checkState(SwingUtilities.isEventDispatchThread());
                                 outputController.onTestEnumeration(e);
@@ -105,6 +106,7 @@ public class GTestViewController {
                     process.getOutput()
                             .lift(new GTestOutputParser())
                             .observeOn(SwingScheduler.getInstance())
+//                            .doOnNext(System.out::println)
                             .subscribe(e -> {
                                 Preconditions.checkState(SwingUtilities.isEventDispatchThread());
                                 outputController.onTestOutput(e);
@@ -119,11 +121,13 @@ public class GTestViewController {
                             });
                 });
 
-        Observable.merge(runTestsTrigger, rerunTestsTrigger).subscribe(x -> {
-            newFailedTests.clear();
-            view.getTestsProgress().setValue(0);
-            outputController.resetState();
-        });
+        Observable.merge(runTestsTrigger, rerunTestsTrigger)
+                .observeOn(SwingScheduler.getInstance())
+                .subscribe(x -> {
+                    newFailedTests.clear();
+                    view.getTestsProgress().setValue(0);
+                    outputController.resetState();
+                });
 
         testExecutionProcess.onStarted().observeOn(SwingScheduler.getInstance()).subscribe(x -> {
             testsAreRunning = true;
