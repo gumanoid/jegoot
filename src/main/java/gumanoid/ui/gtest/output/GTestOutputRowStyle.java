@@ -4,9 +4,8 @@ import gumanoid.ui.Icons;
 import rx.Observable;
 import rx.schedulers.SwingScheduler;
 
-import javax.swing.*;
-
-import java.awt.*;
+import javax.swing.Icon;
+import java.awt.Color;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 

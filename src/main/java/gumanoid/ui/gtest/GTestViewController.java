@@ -12,6 +12,7 @@ import gumanoid.parser.GTestListParser;
 import gumanoid.parser.GTestOutputParser;
 import gumanoid.runner.ProcessLaunchesModel;
 import gumanoid.ui.DoubleProgressBar;
+import gumanoid.ui.gtest.output.GTestOutputRowStyle;
 import gumanoid.ui.gtest.output.GTestOutputViewController;
 import rx.Observable;
 import rx.observables.SwingObservable;
@@ -19,7 +20,7 @@ import rx.schedulers.Schedulers;
 import rx.schedulers.SwingScheduler;
 import rx.subjects.BehaviorSubject;
 
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -162,6 +163,7 @@ public class GTestViewController {
                     newFailedTests = new LinkedList<>();
                     testsProgress = 0;
                     view.getTestsProgress().setValue(0);
+                    view.getTestsSummary().setText("Starting...");
                     outputController.resetState();
                 });
     }
@@ -181,19 +183,20 @@ public class GTestViewController {
     @Subscribe
     public void onSuiteStart(SuiteStart e) {
         view.getTestsProgress().setMaximum(e.testCount);
+        view.getTestsSummary().setText("Passed: " + 0 + " of " + testsProgress);
     }
 
     @Subscribe
     public void onTestPassed(TestPassed e) {
         ++testsProgress;
-        updateProgressBar();
+        updateProgress();
     }
 
     @Subscribe
     public void onTestFailed(TestFailed e) {
         ++testsProgress;
         newFailedTests.add(new TestId(e.groupName, e.testName));
-        updateProgressBar();
+        updateProgress();
     }
 
     @Subscribe
@@ -201,10 +204,16 @@ public class GTestViewController {
         System.out.println("Unhandled event: " + e.getEvent());
     }
 
-    private void updateProgressBar() {
+    private void updateProgress() {
+        int passed = testsProgress - newFailedTests.size();
+
         DoubleProgressBar progress = view.getTestsProgress();
-        progress.setValue1(testsProgress - newFailedTests.size());
+        progress.setValue1(passed);
         progress.setValue2(testsProgress);
+
+        JLabel summary = view.getTestsSummary();
+        summary.setText("Passed: " + passed + " of " + testsProgress);
+        summary.setForeground(newFailedTests.isEmpty()? GTestViewStyle.COLOR_PASSED : GTestViewStyle.COLOR_FAILED);
     }
 
     //todo check what will happen if both cmd line param and env var will be set to different values

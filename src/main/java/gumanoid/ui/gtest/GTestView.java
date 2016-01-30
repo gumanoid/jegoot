@@ -26,6 +26,8 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
     private final DoubleProgressBar testsProgress = new DoubleProgressBar();
 
+    private final JLabel testsSummary = new JLabel();
+
     private final GTestOutputView testOutputView = new GTestOutputView();
 
     public GTestView() {
@@ -40,9 +42,11 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         controls.add(Box.createRigidArea(SPACER_SIZE));
         controls.add(testsProgress);
         controls.add(Box.createRigidArea(SPACER_SIZE));
+        controls.add(testsSummary);
+        controls.add(Box.createRigidArea(SPACER_SIZE));
 
-        testsProgress.setColor1(Color.GREEN);
-        testsProgress.setColor2(Color.RED);
+        testsProgress.setColor1(GTestViewStyle.COLOR_PASSED);
+        testsProgress.setColor2(GTestViewStyle.COLOR_FAILED);
 
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         add(controls);
@@ -70,6 +74,10 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
 
     public DoubleProgressBar getTestsProgress() {
         return testsProgress;
+    }
+
+    public JLabel getTestsSummary() {
+        return testsSummary;
     }
 
     public GTestOutputView getTestOutputView() {

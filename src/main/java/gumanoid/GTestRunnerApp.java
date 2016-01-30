@@ -30,7 +30,7 @@ import java.nio.file.Paths;
 //done UI polishing: icons animation
 //done UI polishing: colors
 //done Query tests list before execution
-//todo Tests summary
+//done Tests summary
 //todo Cover GTestOutputTreeModel with tests
 //todo Cover GTestViewController with tests
 //done UI, output tree: test group names are sometimes truncated
