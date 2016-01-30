@@ -27,6 +27,7 @@ public class GTestOutputView extends JPanel {
         this.model = new GTestOutputTreeModel<>(new GTestOutputRow(null));
 
         tree = new JTree(model);
+        tree.setLargeModel(true); //how on Earth does it fix test ellipsis???
         tree.setName(TREE_NAME);
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);

@@ -33,7 +33,8 @@ import java.nio.file.Paths;
 //todo Tests summary
 //todo Cover GTestOutputTreeModel with tests
 //todo Cover GTestViewController with tests
-//todo UI, output tree: test group names are sometimes truncated
+//done UI, output tree: test group names are sometimes truncated
+//(strange, but it's fixed with JTree#setLargeModel(true)
 //done Use Guice's method interceptor to simplify event emitting/receiving
 //another option is Guava EventBus https://github.com/google/guava/wiki/EventBusExplained
 //done UI polishing: two-section progress bar, to show failed/passed ratio

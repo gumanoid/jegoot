@@ -134,6 +134,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void groupAnnounce(GroupAnnounce e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputRow test = new GTestOutputRow(e.groupName);
         test.setTextColor(GTestOutputRowStyle.COLOR_QUEUED);
         model.queueGroup(e.groupName, test);
@@ -141,6 +143,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void testAnnounce(TestAnnounce e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputRow test = new GTestOutputRow(e.testName);
         test.setTextColor(GTestOutputRowStyle.COLOR_QUEUED);
         model.queueTest(e.groupName, e.testName, test);
@@ -148,11 +152,15 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void outputBeforeSuiteStarted(OutputBeforeSuiteStarted e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         model.addOutput(model.rootNode(), new GTestOutputRow(e.outputLine));
     }
 
     @Subscribe
     public void suiteStart(SuiteStart e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite with " + e.testCount + "tests"));
         model.addOutput(suiteNode, new GTestOutputRow(e.outputLine));
 
@@ -161,6 +169,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void suiteEnd(SuiteEnd e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputRow suite = model.suiteNode().getValue();
 
         model.addOutput(model.suiteNode(), new GTestOutputRow(e.outputLine));
@@ -182,6 +192,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void groupStart(GroupStart e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         failsInGroup = false;
 
         GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.addGroup(e.groupName, new GTestOutputRow(e.groupName + " with " + e.testsInGroup + " test(s)"));
@@ -194,6 +206,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void groupEnd(GroupEnd e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputTreeModel.BranchNode<GTestOutputRow> groupNode = model.groupNode(e.groupName);
         GTestOutputRow group = groupNode.getValue();
 
@@ -213,6 +227,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void testStart(TestStart e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputRow test = new GTestOutputRow(e.testName);
         test.setTextColor(GTestOutputRowStyle.COLOR_RUNNING);
 
@@ -224,6 +240,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void testOutput(TestOutput e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputTreeModel.BranchNode<GTestOutputRow> parentNode =
                 e.groupName.isPresent() ? e.testName.isPresent()
                         ? model.testNode(e.groupName.get(), e.testName.get())
@@ -235,6 +253,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void testPassed(TestPassed e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         GTestOutputTreeModel.BranchNode<GTestOutputRow> testNode = model.testNode(e.groupName, e.testName);
         GTestOutputRow test = testNode.getValue();
         test.setTextColor(GTestOutputRowStyle.COLOR_PASSED);
@@ -247,6 +267,8 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void testFailed(TestFailed e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         failsInGroup = true;
         failsInSuite = true;
 
@@ -271,21 +293,29 @@ public class GTestOutputViewController {
 
     @Subscribe
     public void summaryOutput(SummaryOutput e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
     }
 
     @Subscribe
     public void summaryOutput(PassedTestsSummary e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
     }
 
     @Subscribe
     public void summaryOutput(FailedTestsSummary e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
     }
 
     @Subscribe
     public void summaryOutput(FailedTestSummary e) {
+        Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+
         model.addOutput(model.summaryNode(), new GTestOutputRow(e.outputLine));
     }
 }
