@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 //fixed 'Re-run' button sometimes isn't enabled
 //fixed UI quirk: after 'rerun tests', there is a space between bread crumbs and output tree, which translates clicks into tree O_o
 //It appears only if 'rerun' clicked when tree scrollbar is not shown
+//fixme 'Re-run' and 'cancel' starts infinite sequence of test exe launches
 
 //done Run external process and display it's output in GUI
 //done Support external process interruption
@@ -29,14 +30,16 @@ import java.nio.file.Paths;
 //done UI polishing: icons animation
 //done UI polishing: colors
 //done Query tests list before execution
+//todo Tests summary
 //todo Cover GTestOutputTreeModel with tests
+//todo Cover GTestViewController with tests
+//todo UI, output tree: test group names are sometimes truncated
 //done Use Guice's method interceptor to simplify event emitting/receiving
 //another option is Guava EventBus https://github.com/google/guava/wiki/EventBusExplained
-//todo UI polishing: two-section progress bar, to show failed/passed ratio
+//done UI polishing: two-section progress bar, to show failed/passed ratio
 //done UI polishing: breadcrumbs
 //todo Passing in test flags
 //done Make use of FEST for UI testing
-//todo Tests summary
 //done Invariant: "Kill process".enabled == process.isRunning
 //done Re-run only failed tests
 //done Check Linux platform

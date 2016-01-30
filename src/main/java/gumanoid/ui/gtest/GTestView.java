@@ -1,6 +1,7 @@
 package gumanoid.ui.gtest;
 
 import com.google.common.annotations.VisibleForTesting;
+import gumanoid.ui.DoubleProgressBar;
 import gumanoid.ui.gtest.output.GTestOutputView;
 
 import javax.swing.*;
@@ -23,7 +24,7 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
     private final JButton cancelTests = new JButton("Cancel");
     private final JButton rerunFailedTests = new JButton("Re-run failed");
 
-    private final JProgressBar testsProgress = new JProgressBar();
+    private final DoubleProgressBar testsProgress = new DoubleProgressBar();
 
     private final GTestOutputView testOutputView = new GTestOutputView();
 
@@ -39,6 +40,9 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         controls.add(Box.createRigidArea(SPACER_SIZE));
         controls.add(testsProgress);
         controls.add(Box.createRigidArea(SPACER_SIZE));
+
+        testsProgress.setColor1(Color.GREEN);
+        testsProgress.setColor2(Color.RED);
 
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         add(controls);
@@ -64,7 +68,7 @@ public class GTestView extends JPanel { //todo this class needs more expressive 
         return rerunFailedTests;
     }
 
-    public JProgressBar getTestsProgress() {
+    public DoubleProgressBar getTestsProgress() {
         return testsProgress;
     }
 

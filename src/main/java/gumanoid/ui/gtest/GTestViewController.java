@@ -11,6 +11,7 @@ import gumanoid.event.GTestOutputEvent.TestPassed;
 import gumanoid.parser.GTestListParser;
 import gumanoid.parser.GTestOutputParser;
 import gumanoid.runner.ProcessLaunchesModel;
+import gumanoid.ui.DoubleProgressBar;
 import gumanoid.ui.gtest.output.GTestOutputViewController;
 import rx.Observable;
 import rx.observables.SwingObservable;
@@ -18,7 +19,7 @@ import rx.schedulers.Schedulers;
 import rx.schedulers.SwingScheduler;
 import rx.subjects.BehaviorSubject;
 
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 import java.awt.event.ActionEvent;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -57,6 +58,7 @@ public class GTestViewController {
     private final BehaviorSubject<Collection<TestId>> failedTests = BehaviorSubject.create();
 
     private Collection<TestId> newFailedTests = null;
+    private int testsProgress;
 
     //todo such bindings are more suitable for VM in MVVM pattern than for controller
     //https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples has some interesting ideas
@@ -158,6 +160,7 @@ public class GTestViewController {
                 .observeOn(SwingScheduler.getInstance())
                 .subscribe(x -> {
                     newFailedTests = new LinkedList<>();
+                    testsProgress = 0;
                     view.getTestsProgress().setValue(0);
                     outputController.resetState();
                 });
@@ -176,30 +179,32 @@ public class GTestViewController {
     }
 
     @Subscribe
-    public void rememberTestCount(SuiteStart e) {
+    public void onSuiteStart(SuiteStart e) {
         view.getTestsProgress().setMaximum(e.testCount);
     }
 
     @Subscribe
-    public void increaseProgress(TestFailed e) {
-        JProgressBar progress = view.getTestsProgress();
-        progress.setValue(progress.getValue() + 1);
+    public void onTestPassed(TestPassed e) {
+        ++testsProgress;
+        updateProgressBar();
     }
 
     @Subscribe
-    public void increaseProgress(TestPassed e) {
-        JProgressBar progress = view.getTestsProgress();
-        progress.setValue(progress.getValue() + 1);
-    }
-
-    @Subscribe
-    public void rememberFailedTest(TestFailed e) {
+    public void onTestFailed(TestFailed e) {
+        ++testsProgress;
         newFailedTests.add(new TestId(e.groupName, e.testName));
+        updateProgressBar();
     }
 
     @Subscribe
     public void onDeadEvent(DeadEvent e) {
         System.out.println("Unhandled event: " + e.getEvent());
+    }
+
+    private void updateProgressBar() {
+        DoubleProgressBar progress = view.getTestsProgress();
+        progress.setValue1(testsProgress - newFailedTests.size());
+        progress.setValue2(testsProgress);
     }
 
     //todo check what will happen if both cmd line param and env var will be set to different values
