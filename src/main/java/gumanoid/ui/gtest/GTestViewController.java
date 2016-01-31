@@ -12,7 +12,6 @@ import gumanoid.parser.GTestListParser;
 import gumanoid.parser.GTestOutputParser;
 import gumanoid.runner.ProcessLaunchesModel;
 import gumanoid.ui.DoubleProgressBar;
-import gumanoid.ui.gtest.output.GTestOutputRowStyle;
 import gumanoid.ui.gtest.output.GTestOutputViewController;
 import rx.Observable;
 import rx.observables.SwingObservable;
@@ -107,7 +106,7 @@ public class GTestViewController {
                 });
 
         rerunTests.observeOn(Schedulers.io())
-                .flatMap(x -> failedTests)
+                .flatMap(x -> failedTests.take(1))
                 .map(GTestViewController::createTestFilter)
                 .subscribe(filter -> {
                     testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests", filter));
@@ -154,7 +153,9 @@ public class GTestViewController {
         testExecutionProcess.onFinished()
                 .observeOn(SwingScheduler.getInstance())
                 .subscribe(x -> {
-                    failedTests.onNext(newFailedTests);
+                    if (!x.isCancelled()) {
+                        failedTests.onNext(newFailedTests);
+                    }
                 });
 
         Observable.merge(runTests, rerunTests)

@@ -15,7 +15,9 @@ import java.nio.file.Paths;
 //fixed 'Re-run' button sometimes isn't enabled
 //fixed UI quirk: after 'rerun tests', there is a space between bread crumbs and output tree, which translates clicks into tree O_o
 //It appears only if 'rerun' clicked when tree scrollbar is not shown
-//fixme 'Re-run' and 'cancel' starts infinite sequence of test exe launches
+//fixed 'Re-run' and 'cancel' starts infinite sequence of test exe launches
+//fixed list of failed tests is being kept incorrectly
+//fixme bread crumbs jitter if there is output before suite (e. g. re-run failed)
 
 //done Run external process and display it's output in GUI
 //done Support external process interruption

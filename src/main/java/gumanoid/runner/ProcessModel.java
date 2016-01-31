@@ -5,6 +5,7 @@ import rx.subjects.BehaviorSubject;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Represents state of some launched external process. Allows to
@@ -18,6 +19,7 @@ public class ProcessModel {
     private final BehaviorSubject<Integer> exitCode = BehaviorSubject.create();
 
     private final Process process;
+    private final AtomicBoolean isCancelled = new AtomicBoolean(false);
 
     public ProcessModel(Process process) {
         this.process = process;
@@ -37,7 +39,12 @@ public class ProcessModel {
     }
 
     public void cancel() {
+        isCancelled.set(true);
         process.destroyForcibly();
+    }
+
+    public boolean isCancelled() {
+        return isCancelled.get();
     }
 
     public Observable<String> getOutput() {
