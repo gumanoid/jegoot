@@ -1,6 +1,5 @@
 package gumanoid.ui.gtest;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.eventbus.DeadEvent;
 import com.google.common.eventbus.EventBus;
@@ -8,9 +7,6 @@ import com.google.common.eventbus.Subscribe;
 import gumanoid.event.GTestOutputEvent.SuiteStart;
 import gumanoid.event.GTestOutputEvent.TestFailed;
 import gumanoid.event.GTestOutputEvent.TestPassed;
-import gumanoid.parser.GTestListParser;
-import gumanoid.parser.GTestOutputParser;
-import gumanoid.runner.ProcessLaunchesModel;
 import gumanoid.ui.DoubleProgressBar;
 import gumanoid.ui.gtest.output.GTestOutputViewController;
 import rx.Observable;
@@ -19,7 +15,8 @@ import rx.schedulers.Schedulers;
 import rx.schedulers.SwingScheduler;
 import rx.subjects.BehaviorSubject;
 
-import javax.swing.*;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
 import java.awt.event.ActionEvent;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -28,22 +25,8 @@ import java.util.LinkedList;
  * Created by Gumanoid on 18.01.2016.
  */
 public class GTestViewController {
-    private static class TestId {
-        final String group;
-        final String name;
-
-        private TestId(String group, String name) {
-            this.group = group;
-            this.name = name;
-        }
-
-        @Override
-        public String toString() {
-            return group + "." + name;
-        }
-    }
-
     private final GTestView view;
+    private final GTestModel model;
 
     private final GTestOutputViewController outputController;
 
@@ -51,21 +34,14 @@ public class GTestViewController {
         t.printStackTrace();
     });
 
-    private final ProcessLaunchesModel testEnumerationProcess = new ProcessLaunchesModel();
-    private final ProcessLaunchesModel testExecutionProcess = new ProcessLaunchesModel();
-    private final String testExePath;
+    private final BehaviorSubject<Collection<GTestModel.TestId>> failedTests = BehaviorSubject.create();
 
-    private final BehaviorSubject<Collection<TestId>> failedTests = BehaviorSubject.create();
-
-    private Collection<TestId> newFailedTests = null;
+    private Collection<GTestModel.TestId> newFailedTests = null;
     private int testsProgress;
-
-    //todo such bindings are more suitable for VM in MVVM pattern than for controller
-    //https://github.com/Petikoch/Java_MVVM_with_Swing_and_RxJava_Examples has some interesting ideas
 
     public GTestViewController(GTestView view, String testExePath) {
         this.view = view;
-        this.testExePath = testExePath;
+        this.model = new GTestModel(testExePath);
         this.outputController = new GTestOutputViewController(view.getTestOutputView());
 
         eventBus.register(this);
@@ -75,16 +51,19 @@ public class GTestViewController {
         Observable<ActionEvent> rerunTests = SwingObservable.fromButtonAction(view.getRerunFailedTests());
         Observable<ActionEvent> cancelTests = SwingObservable.fromButtonAction(view.getCancelTests());
 
-        Observable<Boolean> testsAreRunning = Observable.merge(
-                testExecutionProcess.onStarted().map(x -> true),
-                testExecutionProcess.onFinished().map(x -> false)
-        ).observeOn(SwingScheduler.getInstance());
-
         Observable.merge(runTests, rerunTests)
+                .observeOn(SwingScheduler.getInstance())
                 .subscribe(x -> {
                     view.getRunTests().setEnabled(false);
                     view.getRerunFailedTests().setEnabled(false);
+                    resetProgress();
                 });
+
+        Observable<Boolean> testsAreRunning = Observable.merge(
+                model.testsStarted().map(x -> true),
+                model.testsComplete().map(x -> false),
+                model.testsCancelled().map(x -> false)
+        ).observeOn(SwingScheduler.getInstance());
 
         testsAreRunning.subscribe(r -> {
             view.getRunTests().setEnabled(!r);
@@ -101,71 +80,37 @@ public class GTestViewController {
 
         runTests.observeOn(Schedulers.io())
                 .subscribe(x -> {
-                    testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests"));
-                    testExecutionProcess.start(new ProcessBuilder(this.testExePath));
+                    model.runTests();
                 });
 
         rerunTests.observeOn(Schedulers.io())
                 .flatMap(x -> failedTests.take(1))
-                .map(GTestViewController::createTestFilter)
-                .subscribe(filter -> {
-                    testEnumerationProcess.start(new ProcessBuilder(this.testExePath, "--gtest_list_tests", filter));
-                    testExecutionProcess.start(new ProcessBuilder(this.testExePath, filter));
-                });
+                .subscribe(model::rerunFailedTests);
 
         cancelTests.observeOn(Schedulers.io())
                 .subscribe(x -> {
-                    testEnumerationProcess.cancel();
-                    testExecutionProcess.cancel();
+                    model.cancelTests();
                 });
 
-        testEnumerationProcess.onStarted()
-                .subscribe(process -> {
-                    process.getOutput()
-                            .lift(new GTestListParser())
-                            .observeOn(SwingScheduler.getInstance())
-//                            .doOnNext(System.out::println)
-                            .subscribe(e -> {
-                                Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-                                eventBus.post(e);
-                            });
+        Observable.merge(model.testsEnumeration(), model.testsOutput())
+                .observeOn(SwingScheduler.getInstance())
+//                .doOnNext(System.out::println)
+                .subscribe(e -> {
+                    Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+                    eventBus.post(e);
+                }); //todo also handle error
+
+        model.testsExitCode()
+                .observeOn(SwingScheduler.getInstance())
+                .subscribe(exitCode -> {
+                    Preconditions.checkState(SwingUtilities.isEventDispatchThread());
+                    outputController.processFinished(exitCode);
                 });
 
-        testExecutionProcess.onStarted()
-                .subscribe(process -> {
-                    process.getOutput()
-                            .lift(new GTestOutputParser())
-                            .observeOn(SwingScheduler.getInstance())
-//                            .doOnNext(System.out::println)
-                            .subscribe(e -> {
-                                Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-                                eventBus.post(e);
-                            }); //todo also handle error
-
-                    process.getExitCode()
-                            .observeOn(SwingScheduler.getInstance())
-                            .subscribe(exitCode -> {
-                                Preconditions.checkState(SwingUtilities.isEventDispatchThread());
-                                outputController.processFinished(exitCode);
-                            });
-                });
-
-        testExecutionProcess.onFinished()
+        model.testsComplete()
                 .observeOn(SwingScheduler.getInstance())
                 .subscribe(x -> {
-                    if (!x.isCancelled()) {
-                        failedTests.onNext(newFailedTests);
-                    }
-                });
-
-        Observable.merge(runTests, rerunTests)
-                .observeOn(SwingScheduler.getInstance())
-                .subscribe(x -> {
-                    newFailedTests = new LinkedList<>();
-                    testsProgress = 0;
-                    view.getTestsProgress().setValue(0);
-                    view.getTestsSummary().setText("Starting...");
-                    outputController.resetState();
+                    failedTests.onNext(newFailedTests);
                 });
     }
 
@@ -184,7 +129,6 @@ public class GTestViewController {
     @Subscribe
     public void onSuiteStart(SuiteStart e) {
         view.getTestsProgress().setMaximum(e.testCount);
-        view.getTestsSummary().setText("Passed: " + 0 + " of " + testsProgress);
     }
 
     @Subscribe
@@ -196,13 +140,21 @@ public class GTestViewController {
     @Subscribe
     public void onTestFailed(TestFailed e) {
         ++testsProgress;
-        newFailedTests.add(new TestId(e.groupName, e.testName));
+        newFailedTests.add(new GTestModel.TestId(e.groupName, e.testName));
         updateProgress();
     }
 
     @Subscribe
     public void onDeadEvent(DeadEvent e) {
         System.out.println("Unhandled event: " + e.getEvent());
+    }
+
+    private void resetProgress() {
+        newFailedTests = new LinkedList<>();
+        testsProgress = 0;
+        view.getTestsProgress().setValue(0);
+        view.getTestsSummary().setText("Starting...");
+        outputController.resetState();
     }
 
     private void updateProgress() {
@@ -213,13 +165,7 @@ public class GTestViewController {
         progress.setValue2(testsProgress);
 
         JLabel summary = view.getTestsSummary();
-        summary.setText("Passed: " + passed + " of " + testsProgress);
+        summary.setText("Passed: " + passed + ". Run: " + testsProgress);
         summary.setForeground(newFailedTests.isEmpty()? GTestViewStyle.COLOR_PASSED : GTestViewStyle.COLOR_FAILED);
-    }
-
-    //todo check what will happen if both cmd line param and env var will be set to different values
-    //(e. g. which one has priority)
-    private static String createTestFilter(Collection<TestId> testsToInclude) {
-        return "--gtest_filter=" + Joiner.on(":").join(testsToInclude);
     }
 }

@@ -161,7 +161,7 @@ public class GTestOutputViewController {
     public void suiteStart(SuiteStart e) {
         Preconditions.checkState(SwingUtilities.isEventDispatchThread());
 
-        GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite with " + e.testCount + "tests"));
+        GTestOutputTreeModel.BranchNode<GTestOutputRow> suiteNode = model.addSuite(new GTestOutputRow("Suite with " + e.testCount + " test(s)"));
         model.addOutput(suiteNode, new GTestOutputRow(e.outputLine));
 
         currentSuiteIndicator.animate(suiteNode, GTestOutputRowStyle.GRAY_SPINNER);
@@ -213,7 +213,7 @@ public class GTestOutputViewController {
 
         currentGroupIndicator.stopAnimation();
         if (failsInGroup) {
-//            group.setTextColor(Color.RED);
+//            group.setTextColor(Color.COLOR_PASSED); //color is already set when test is failed
             group.setIcon(GTestOutputRowStyle.GROUP_FAILED_ICON);
         } else {
             group.setTextColor(GTestOutputRowStyle.COLOR_PASSED);
